@@ -1,4 +1,4 @@
-# Twilio Bulk SMS Web Application
+# GMADP - Global Messaging and Distribution Platform
 
 A production-ready Flask web application for sending bulk SMS messages via Twilio with a user-friendly interface, campaign tracking, and delivery status monitoring.
 

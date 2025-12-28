@@ -1,4 +1,4 @@
-# 🎉 Twilio SMS App - Complete Project Status
+# 🎉 GMADP - Complete Project Status
 
 ## ✅ COMPLETED FEATURES
 

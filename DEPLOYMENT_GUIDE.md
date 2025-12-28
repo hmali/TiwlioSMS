@@ -1,4 +1,4 @@
-# 🚀 Complete Deployment Guide - Twilio Bulk SMS App on Ubuntu 24.04
+# 🚀 Complete Deployment Guide - GMADP on Ubuntu 24.04
 
 ## 📋 **Required Packages List**
 

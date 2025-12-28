@@ -4,8 +4,36 @@ body {
     background-color: #f8f9fa;
 }
 
+/* Logo Styling */
+.navbar-logo {
+    height: 40px;
+    width: auto;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    transition: transform 0.3s ease;
+}
+
+.navbar-logo:hover {
+    transform: scale(1.05);
+}
+
+.login-logo {
+    height: 100px;
+    width: auto;
+    max-width: 100%;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
 .navbar-brand {
     font-weight: bold;
+}
+
+.navbar-brand span {
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
 .card {

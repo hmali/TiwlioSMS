@@ -1,4 +1,4 @@
-# Quick Start: Twilio SMS App Deployment
+# Quick Start: GMADP Deployment
 
 ## 🚀 One-Command Deployment
 

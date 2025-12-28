@@ -1,6 +1,6 @@
 # GitHub Integration and Deployment Guide
 
-This guide covers setting up automated deployment from GitHub for your Twilio SMS application.
+This guide covers setting up automated deployment from GitHub for your GMADP application.
 
 ## Overview
 
