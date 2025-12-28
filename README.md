@@ -36,32 +36,50 @@ Real-time monitoring of message delivery with detailed status for each number.
 - Twilio account with Account SID and Auth Token
 - Verified Twilio phone number for sending
 
-### One-Click Deployment
+### One-Command Deployment
 
-1. **Launch EC2 Instance**
-   ```bash
-   # Connect to your EC2 instance
-   ssh -i your-key.pem ubuntu@your-ec2-public-ip
-   ```
+**Deploy your Twilio SMS app in under 5 minutes:**
 
-2. **Download and Run Deployment Script**
-   ```bash
-   wget https://raw.githubusercontent.com/your-repo/twilio-sms-app/main/deploy.sh
-   chmod +x deploy.sh
-   ./deploy.sh
-   ```
+```bash
+# Connect to your EC2 instance
+ssh -i your-key.pem ubuntu@your-ec2-public-ip
 
-3. **Access Application**
-   - Open `http://your-ec2-public-ip` in browser
-   - Login with: `admin` / `admin123`
-   - Configure Twilio credentials in Settings
+# Run the ultimate deployment script
+curl -fsSL https://raw.githubusercontent.com/hmali/TiwlioSMS/main/deploy.sh | sudo bash
+```
 
-### Manual Installation
+**That's it!** The script will:
+- ✅ Install all system dependencies
+- ✅ Clone the latest code from GitHub
+- ✅ Set up Python environment and dependencies
+- ✅ Configure database and application structure
+- ✅ Create and configure systemd service
+- ✅ Set up Nginx reverse proxy
+- ✅ Start all services automatically
+- ✅ Verify deployment success
+
+### Access Your Application
+
+After successful deployment:
+- **URL:** `http://your-ec2-public-ip`
+- **Login:** `admin` / `admin123`
+- **⚠️ Important:** Change default credentials immediately!
+
+### Next Steps
+
+1. **Access the application** and login
+2. **Change default credentials** in Settings
+3. **Configure Twilio credentials** (Account SID, Auth Token, Phone Number)
+4. **Test SMS functionality**
+
+### Manual Installation (Alternative)
+
+If you prefer manual setup:
 
 1. **Clone Repository**
    ```bash
-   git clone https://github.com/your-repo/twilio-sms-app.git
-   cd twilio-sms-app
+   git clone https://github.com/hmali/TiwlioSMS.git
+   cd TiwlioSMS
    ```
 
 2. **Install Dependencies**
@@ -181,10 +199,13 @@ sudo certbot --nginx -d yourdomain.com
 ### Monitoring
 ```bash
 # View application logs
-sudo journalctl -u twilio-sms-app -f
+sudo journalctl -u twilio-sms -f
 
 # Check service status
-sudo systemctl status twilio-sms-app
+sudo systemctl status twilio-sms
+
+# Restart service if needed
+sudo systemctl restart twilio-sms
 ```
 
 ### Backup
@@ -211,40 +232,22 @@ cp -r /opt/twilio-sms-app/uploads /backup/location/
 
 ## Updates and Maintenance
 
-### GitHub Integration (Recommended)
+### Simple Updates
 
-For automated deployment from GitHub:
-
-1. **Setup Git Workflow**:
+1. **Update from GitHub**:
    ```bash
-   ./setup-git-workflow.sh
+   sudo /opt/twilio-sms/update.sh
    ```
 
-2. **Setup Auto-Updates**:
+2. **Fresh Deployment**:
    ```bash
-   sudo ./setup-auto-update.sh
+   curl -fsSL https://raw.githubusercontent.com/hmali/TiwlioSMS/main/deploy.sh | sudo bash
    ```
 
-3. **Manual GitHub Deploy**:
+3. **Auto-Updates** (Optional):
    ```bash
-   sudo ./github-deploy.sh --repo-url https://github.com/yourusername/TiwlioSMS.git
+   sudo /opt/twilio-sms/setup-auto-update.sh
    ```
-
-### Traditional Updates
-
-1. **Simple Updates**: Use the update script:
-   ```bash
-   sudo ./deploy-update.sh
-   ```
-
-2. **Full Redeployment**: Run the full deployment:
-   ```bash
-   sudo ./manual-deploy.sh
-   ```
-
-For detailed instructions:
-- [GITHUB_INTEGRATION.md](GITHUB_INTEGRATION.md) - GitHub deployment guide
-- [UPDATE_DEPLOYMENT.md](UPDATE_DEPLOYMENT.md) - Traditional updates
 
 ## Troubleshooting
 
