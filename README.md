@@ -209,6 +209,43 @@ cp -r /opt/twilio-sms-app/uploads /backup/location/
 | `/campaign/<id>` | GET | Campaign status page |
 | `/api/campaign/<id>/status` | GET | Campaign status API |
 
+## Updates and Maintenance
+
+### GitHub Integration (Recommended)
+
+For automated deployment from GitHub:
+
+1. **Setup Git Workflow**:
+   ```bash
+   ./setup-git-workflow.sh
+   ```
+
+2. **Setup Auto-Updates**:
+   ```bash
+   sudo ./setup-auto-update.sh
+   ```
+
+3. **Manual GitHub Deploy**:
+   ```bash
+   sudo ./github-deploy.sh --repo-url https://github.com/yourusername/TiwlioSMS.git
+   ```
+
+### Traditional Updates
+
+1. **Simple Updates**: Use the update script:
+   ```bash
+   sudo ./deploy-update.sh
+   ```
+
+2. **Full Redeployment**: Run the full deployment:
+   ```bash
+   sudo ./manual-deploy.sh
+   ```
+
+For detailed instructions:
+- [GITHUB_INTEGRATION.md](GITHUB_INTEGRATION.md) - GitHub deployment guide
+- [UPDATE_DEPLOYMENT.md](UPDATE_DEPLOYMENT.md) - Traditional updates
+
 ## Troubleshooting
 
 ### Common Issues
