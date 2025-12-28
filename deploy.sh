@@ -95,6 +95,10 @@ setup_application() {
     log "Cloning repository from $REPO_URL"
     git clone $REPO_URL .
     
+    # Configure Git safe directory
+    log "Configuring Git safe directory..."
+    git config --global --add safe.directory "$DEPLOY_DIR"
+    
     # Create necessary directories
     mkdir -p uploads logs
     

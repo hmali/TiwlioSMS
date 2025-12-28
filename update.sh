@@ -34,6 +34,10 @@ log "Creating backup..."
 rm -rf "$BACKUP_DIR"
 cp -r "$DEPLOY_DIR" "$BACKUP_DIR"
 
+# Fix Git ownership issue
+log "Configuring Git safe directory..."
+git config --global --add safe.directory "$DEPLOY_DIR" 2>/dev/null || true
+
 # Update code
 cd "$DEPLOY_DIR"
 log "Pulling latest code..."
