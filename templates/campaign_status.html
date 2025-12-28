@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Campaign Status - Twilio Bulk SMS{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-chart-line"></i> Campaign Status</h2>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Campaign Details</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>Campaign Name:</strong></td>
+                        <td>{{ campaign[0] }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Status:</strong></td>
+                        <td>
+                            <span id="campaign-status">
+                                {% if campaign[5] == 'completed' %}
+                                    <span class="badge bg-success">Completed</span>
+                                {% elif campaign[5] == 'sending' %}
+                                    <span class="badge bg-warning">Sending</span>
+                                {% elif campaign[5] == 'pending' %}
+                                    <span class="badge bg-info">Pending</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Error</span>
+                                {% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Created:</strong></td>
+                        <td>{{ campaign[6] if campaign[6] else 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Completed:</strong></td>
+                        <td>{{ campaign[7] if campaign[7] else 'N/A' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie"></i> Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h4 class="text-info" id="total-count">{{ campaign[2] }}</h4>
+                        <small>Total</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-success" id="success-count">{{ campaign[3] }}</h4>
+                        <small>Successful</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-danger" id="failed-count">{{ campaign[4] }}</h4>
+                        <small>Failed</small>
+                    </div>
+                </div>
+                
+                <div class="progress mt-3" style="height: 20px;">
+                    <div class="progress-bar bg-success" role="progressbar" 
+                         style="width: {{ ((campaign[3] / campaign[2]) * 100) if campaign[2] > 0 else 0 }}%" 
+                         id="success-progress">
+                        {{ campaign[3] }} sent
+                    </div>
+                    <div class="progress-bar bg-danger" role="progressbar" 
+                         style="width: {{ ((campaign[4] / campaign[2]) * 100) if campaign[2] > 0 else 0 }}%"
+                         id="failed-progress">
+                        {{ campaign[4] }} failed
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-list"></i> Message Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Message Content:</strong>
+                    <div class="border p-3 mt-2 bg-light">
+                        {{ campaign[1] }}
+                    </div>
+                </div>
+                
+                {% if messages %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Phone Number</th>
+                                <th>Message SID</th>
+                                <th>Status</th>
+                                <th>Sent At</th>
+                                <th>Error</th>
+                            </tr>
+                        </thead>
+                        <tbody id="messages-table">
+                            {% for message in messages %}
+                            <tr>
+                                <td>{{ message[0] }}</td>
+                                <td>
+                                    {% if message[1] %}
+                                        <code class="small">{{ message[1] }}</code>
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if message[2] == 'sent' %}
+                                        <span class="badge bg-success">Sent</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Failed</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ message[4] if message[4] else 'N/A' }}</td>
+                                <td>
+                                    {% if message[3] %}
+                                        <span class="text-danger small">{{ message[3] }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                    <h5>No messages sent yet</h5>
+                    <p class="text-muted">Messages will appear here as they are sent.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if campaign[5] in ['pending', 'sending'] %}
+<script>
+// Auto-refresh campaign status every 5 seconds
+function updateCampaignStatus() {
+    fetch(`/api/campaign/{{ campaign_id }}/status`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) return;
+            
+            document.getElementById('success-count').textContent = data.successful;
+            document.getElementById('failed-count').textContent = data.failed;
+            
+            // Update progress bars
+            const successPercentage = (data.successful / data.total) * 100;
+            const failedPercentage = (data.failed / data.total) * 100;
+            
+            document.getElementById('success-progress').style.width = successPercentage + '%';
+            document.getElementById('success-progress').textContent = data.successful + ' sent';
+            
+            document.getElementById('failed-progress').style.width = failedPercentage + '%';
+            document.getElementById('failed-progress').textContent = data.failed + ' failed';
+            
+            // Update status badge
+            const statusElement = document.getElementById('campaign-status');
+            if (data.status === 'completed') {
+                statusElement.innerHTML = '<span class="badge bg-success">Completed</span>';
+                clearInterval(statusInterval); // Stop polling when completed
+                location.reload(); // Reload to show all messages
+            } else if (data.status === 'sending') {
+                statusElement.innerHTML = '<span class="badge bg-warning">Sending</span>';
+            } else if (data.status === 'error') {
+                statusElement.innerHTML = '<span class="badge bg-danger">Error</span>';
+                clearInterval(statusInterval);
+            }
+        })
+        .catch(error => console.error('Error updating status:', error));
+}
+
+// Update every 5 seconds
+const statusInterval = setInterval(updateCampaignStatus, 5000);
+</script>
+{% endif %}
+{% endblock %}

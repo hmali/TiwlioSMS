@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Twilio Bulk SMS{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cog"></i> Twilio Configuration</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="twilio_sid" class="form-label">Account SID</label>
+                        <input type="text" class="form-control" id="twilio_sid" name="twilio_sid" 
+                               value="{{ current_sid }}" placeholder="AC..." required>
+                        <div class="form-text">Your Twilio Account SID from the Twilio Console</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="twilio_token" class="form-label">Auth Token</label>
+                        <input type="password" class="form-control" id="twilio_token" name="twilio_token" 
+                               value="{{ current_token }}" placeholder="Your Auth Token" required>
+                        <div class="form-text">Your Twilio Auth Token from the Twilio Console</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Configuration
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> How to get Twilio credentials</h6>
+            </div>
+            <div class="card-body">
+                <ol class="small">
+                    <li>Go to <a href="https://console.twilio.com" target="_blank">Twilio Console</a></li>
+                    <li>Login to your account</li>
+                    <li>Find your Account SID and Auth Token on the dashboard</li>
+                    <li>Copy and paste them here</li>
+                </ol>
+                
+                <div class="alert alert-warning mt-3">
+                    <small><i class="fas fa-exclamation-triangle"></i> Keep your credentials secure and never share them!</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-phone"></i> Phone Number Format</h6>
+            </div>
+            <div class="card-body">
+                <p class="small">Supported phone number formats:</p>
+                <ul class="small">
+                    <li>+1234567890</li>
+                    <li>+12345678901</li>
+                    <li>1234567890 (will be formatted)</li>
+                </ul>
+                <div class="alert alert-info mt-2">
+                    <small><i class="fas fa-info-circle"></i> Make sure you have a verified Twilio phone number to send from!</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

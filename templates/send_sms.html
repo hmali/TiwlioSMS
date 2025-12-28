@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Send SMS - Twilio Bulk SMS{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-paper-plane"></i> Send Bulk SMS</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" id="smsForm">
+                    <div class="mb-3">
+                        <label for="campaign_name" class="form-label">Campaign Name *</label>
+                        <input type="text" class="form-control" id="campaign_name" name="campaign_name" 
+                               placeholder="e.g., Holiday Greetings 2025" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="from_number" class="form-label">From Phone Number *</label>
+                        <input type="text" class="form-control" id="from_number" name="from_number" 
+                               placeholder="+15551234567" required>
+                        <div class="form-text">Must be a Twilio verified phone number</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="phone_file" class="form-label">Phone Numbers File *</label>
+                        <input type="file" class="form-control" id="phone_file" name="phone_file" 
+                               accept=".txt,.csv" required>
+                        <div class="form-text">Upload a .txt or .csv file containing phone numbers</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="message_body" class="form-label">Message *</label>
+                        <textarea class="form-control" id="message_body" name="message_body" rows="6" 
+                                  placeholder="Enter your message here..." required maxlength="1600"></textarea>
+                        <div class="form-text">
+                            <span id="char_count">0</span>/1600 characters
+                            <span class="float-end" id="sms_count">1 SMS</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="confirm_send" required>
+                            <label class="form-check-label" for="confirm_send">
+                                I confirm that I want to send this message to all numbers in the uploaded file
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="sendBtn">
+                        <i class="fas fa-paper-plane"></i> Send SMS Campaign
+                    </button>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary ms-2">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-lightbulb"></i> Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="small">
+                    <li>Keep messages under 160 characters for single SMS</li>
+                    <li>Longer messages will be split into multiple SMS</li>
+                    <li>Test with a small list first</li>
+                    <li>Include opt-out instructions</li>
+                    <li>Be mindful of time zones</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-file-alt"></i> File Format Examples</h6>
+            </div>
+            <div class="card-body">
+                <p class="small"><strong>Text file (.txt):</strong></p>
+                <pre class="small bg-light p-2">+1234567890
++1987654321
++1555123456</pre>
+                
+                <p class="small mt-3"><strong>CSV file (.csv):</strong></p>
+                <pre class="small bg-light p-2">+1234567890,+1987654321
++1555123456</pre>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-exclamation-triangle"></i> Important</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <small>
+                        <strong>Compliance:</strong> Ensure you have permission to send SMS to all numbers. 
+                        Follow local regulations and include opt-out instructions.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('message_body').addEventListener('input', function() {
+    const text = this.value;
+    const charCount = text.length;
+    const smsCount = Math.ceil(charCount / 160) || 1;
+    
+    document.getElementById('char_count').textContent = charCount;
+    document.getElementById('sms_count').textContent = smsCount + ' SMS';
+    
+    if (charCount > 1600) {
+        this.classList.add('is-invalid');
+    } else {
+        this.classList.remove('is-invalid');
+    }
+});
+
+document.getElementById('smsForm').addEventListener('submit', function(e) {
+    const btn = document.getElementById('sendBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    btn.disabled = true;
+});
+</script>
+{% endblock %}
