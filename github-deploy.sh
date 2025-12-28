@@ -54,6 +54,138 @@ check_git() {
     fi
 }
 
+# Check if this is initial deployment
+is_initial_deployment() {
+    [[ ! -f "/etc/systemd/system/$SERVICE_NAME.service" ]]
+}
+
+# Install system dependencies
+install_dependencies() {
+    log "Installing system dependencies..."
+    
+    apt update
+    apt install -y python3 python3-pip python3-venv nginx curl wget
+    
+    success "System dependencies installed"
+}
+
+# Create systemd service file
+create_systemd_service() {
+    log "Creating systemd service file..."
+    
+    cat > "/etc/systemd/system/$SERVICE_NAME.service" << EOF
+[Unit]
+Description=Twilio SMS Application
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=$DEPLOY_DIR
+Environment=PATH=$DEPLOY_DIR/venv/bin
+ExecStart=$DEPLOY_DIR/venv/bin/gunicorn -c gunicorn_config.py app:app
+Restart=always
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=$DEPLOY_DIR
+PrivateDevices=yes
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    systemctl daemon-reload
+    success "Systemd service created"
+}
+
+# Create nginx configuration
+create_nginx_config() {
+    log "Creating Nginx configuration..."
+    
+    cat > "/etc/nginx/sites-available/$NGINX_SITE" << 'EOF'
+server {
+    listen 80;
+    server_name _;
+    
+    client_max_body_size 50M;
+    
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout       300;
+        proxy_send_timeout          300;
+        proxy_read_timeout          300;
+        send_timeout                300;
+    }
+    
+    location /static {
+        alias /opt/twilio-sms/static;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    location /uploads {
+        alias /opt/twilio-sms/uploads;
+        expires 1h;
+        add_header Cache-Control "private";
+    }
+}
+EOF
+    
+    # Enable the site
+    ln -sf "/etc/nginx/sites-available/$NGINX_SITE" "/etc/nginx/sites-enabled/"
+    
+    # Remove default nginx site if it exists
+    rm -f /etc/nginx/sites-enabled/default
+    
+    # Test nginx configuration
+    nginx -t
+    
+    success "Nginx configuration created"
+}
+
+# Initialize application database and setup
+initialize_application() {
+    log "Initializing application..."
+    
+    cd "$DEPLOY_DIR"
+    
+    # Create uploads directory
+    mkdir -p uploads logs
+    
+    # Initialize database if it doesn't exist
+    if [[ ! -f "twilio_sms.db" ]]; then
+        log "Initializing database..."
+        source venv/bin/activate
+        python3 -c "from app import init_db; init_db()"
+        success "Database initialized"
+    fi
+    
+    # Create .env file if it doesn't exist
+    if [[ ! -f ".env" ]]; then
+        log "Creating default .env file..."
+        cp .env.example .env
+        success "Default .env file created"
+    fi
+    
+    success "Application initialized"
+}
+
 # Backup current deployment
 backup_current() {
     if [[ -d "$DEPLOY_DIR" ]]; then
@@ -175,18 +307,26 @@ update_permissions() {
 restart_services() {
     log "Restarting services..."
     
-    # Stop services
-    systemctl stop "$SERVICE_NAME" || true
+    # Check if systemd service exists before trying to stop it
+    if systemctl list-unit-files | grep -q "$SERVICE_NAME.service"; then
+        log "Stopping existing service..."
+        systemctl stop "$SERVICE_NAME" || true
+    else
+        log "Service not found, will start fresh..."
+    fi
     
     # Start services
+    log "Starting $SERVICE_NAME service..."
     systemctl start "$SERVICE_NAME"
+    
+    log "Restarting nginx..."
     systemctl restart nginx
     
     # Enable services to start on boot
-    systemctl enable "$SERVICE_NAME"
-    systemctl enable nginx
+    systemctl enable "$SERVICE_NAME" >/dev/null 2>&1
+    systemctl enable nginx >/dev/null 2>&1
     
-    success "Services restarted"
+    success "Services started and enabled"
 }
 
 # Verify deployment
@@ -210,10 +350,21 @@ verify_deployment() {
     # Test HTTP response
     sleep 5  # Wait for service to fully start
     
-    if curl -s http://localhost:8080 > /dev/null; then
-        success "Application is responding"
+    # Test both direct application port and nginx proxy
+    if curl -s http://localhost:8000 > /dev/null; then
+        success "Application is responding on port 8000"
+        
+        if curl -s http://localhost > /dev/null; then
+            success "Application is accessible via Nginx on port 80"
+        else
+            warning "Nginx proxy may not be working properly"
+        fi
     else
-        warning "Application may not be responding on port 8080"
+        warning "Application may not be responding on port 8000"
+        
+        # Show some diagnostic info
+        log "Checking application status..."
+        systemctl status "$SERVICE_NAME" --no-pager -l
     fi
 }
 
@@ -237,21 +388,61 @@ rollback() {
 main() {
     log "Starting GitHub deployment for $APP_NAME"
     
+    # Check if this is initial deployment
+    local initial_deploy=false
+    if is_initial_deployment; then
+        initial_deploy=true
+        log "Detected initial deployment"
+    else
+        log "Detected update deployment"
+    fi
+    
     # Set trap for error handling
     trap rollback ERR
     
     check_root
     check_git
+    
+    # For initial deployments, install system dependencies
+    if [[ "$initial_deploy" == "true" ]]; then
+        install_dependencies
+    fi
+    
     backup_current
     pull_latest_code
-    preserve_config
+    
+    # For initial deployments, set up system services
+    if [[ "$initial_deploy" == "true" ]]; then
+        create_systemd_service
+        create_nginx_config
+        initialize_application
+    else
+        preserve_config
+    fi
+    
     update_dependencies
     update_permissions
     restart_services
     verify_deployment
     
     success "Deployment completed successfully!"
-    log "Application is running at http://YOUR_SERVER_IP:8080"
+    
+    if [[ "$initial_deploy" == "true" ]]; then
+        log "=== INITIAL DEPLOYMENT COMPLETE ==="
+        log "Application URL: http://$(curl -s http://checkip.amazonaws.com):80"
+        log "Default Login: admin / admin123"
+        log "Please change default credentials immediately!"
+        log ""
+        log "Next steps:"
+        log "1. Access the application and change default login"
+        log "2. Configure Twilio credentials in Settings"
+        log "3. Test SMS functionality"
+        log ""
+        log "Setup auto-updates with: sudo $DEPLOY_DIR/setup-auto-update.sh"
+    else
+        log "Application updated and running at http://YOUR_SERVER_IP:80"
+    fi
+    
     log "Logs: journalctl -u $SERVICE_NAME -f"
 }
 
