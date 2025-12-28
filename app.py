@@ -306,14 +306,90 @@ def settings():
     # Get current settings
     conn = sqlite3.connect('twilio_sms.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT twilio_sid, twilio_token FROM users WHERE id = ?', (session['user_id'],))
+    cursor.execute('SELECT username, twilio_sid, twilio_token FROM users WHERE id = ?', (session['user_id'],))
     result = cursor.fetchone()
     conn.close()
     
-    current_sid = result[0] if result else ''
-    current_token = result[1] if result else ''
+    current_username = result[0] if result else ''
+    current_sid = result[1] if result else ''
+    current_token = result[2] if result else ''
     
-    return render_template('settings.html', current_sid=current_sid, current_token=current_token)
+    return render_template('settings.html', 
+                         current_username=current_username,
+                         current_sid=current_sid, 
+                         current_token=current_token)
+
+@app.route('/change-credentials', methods=['GET', 'POST'])
+@login_required
+def change_credentials():
+    """Change username and password"""
+    if request.method == 'POST':
+        current_password = request.form['current_password']
+        new_username = request.form['new_username'].strip()
+        new_password = request.form['new_password']
+        confirm_password = request.form['confirm_password']
+        
+        # Validation
+        if not current_password or not new_username or not new_password:
+            flash('All fields are required', 'error')
+            return redirect(url_for('change_credentials'))
+        
+        if new_password != confirm_password:
+            flash('New passwords do not match', 'error')
+            return redirect(url_for('change_credentials'))
+        
+        if len(new_password) < 6:
+            flash('Password must be at least 6 characters long', 'error')
+            return redirect(url_for('change_credentials'))
+        
+        if len(new_username) < 3:
+            flash('Username must be at least 3 characters long', 'error')
+            return redirect(url_for('change_credentials'))
+        
+        conn = sqlite3.connect('twilio_sms.db')
+        cursor = conn.cursor()
+        
+        # Verify current password
+        cursor.execute('SELECT password_hash, username FROM users WHERE id = ?', (session['user_id'],))
+        user = cursor.fetchone()
+        
+        if not user or not check_password_hash(user[0], current_password):
+            conn.close()
+            flash('Current password is incorrect', 'error')
+            return redirect(url_for('change_credentials'))
+        
+        # Check if new username already exists (for other users)
+        cursor.execute('SELECT id FROM users WHERE username = ? AND id != ?', (new_username, session['user_id']))
+        if cursor.fetchone():
+            conn.close()
+            flash('Username already exists. Please choose a different one.', 'error')
+            return redirect(url_for('change_credentials'))
+        
+        # Update username and password
+        new_password_hash = generate_password_hash(new_password)
+        cursor.execute('''
+            UPDATE users SET username = ?, password_hash = ? WHERE id = ?
+        ''', (new_username, new_password_hash, session['user_id']))
+        
+        conn.commit()
+        conn.close()
+        
+        # Update session
+        session['username'] = new_username
+        
+        flash('Credentials updated successfully! Please log in again for security.', 'success')
+        return redirect(url_for('logout'))
+    
+    # Get current username for display
+    conn = sqlite3.connect('twilio_sms.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+    result = cursor.fetchone()
+    conn.close()
+    
+    current_username = result[0] if result else ''
+    
+    return render_template('change_credentials.html', current_username=current_username)
 
 @app.route('/send_sms', methods=['GET', 'POST'])
 @login_required

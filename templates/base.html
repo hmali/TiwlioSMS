@@ -41,8 +41,20 @@
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-user"></i> {{ session.username }}
+                            {% if session.username == 'admin' %}
+                                <span class="badge bg-warning ms-1" title="Default credentials - Please change!">!</span>
+                            {% endif %}
                         </a>
                         <ul class="dropdown-menu">
+                            {% if session.username == 'admin' %}
+                            <li><a class="dropdown-item text-warning" href="{{ url_for('change_credentials') }}">
+                                <i class="fas fa-exclamation-triangle"></i> Change Default Password
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="{{ url_for('change_credentials') }}">
+                                <i class="fas fa-user-edit"></i> Change Credentials
+                            </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('logout') }}">
                                 <i class="fas fa-sign-out-alt"></i> Logout
                             </a></li>
