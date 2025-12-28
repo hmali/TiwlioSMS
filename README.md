@@ -36,27 +36,36 @@ Real-time monitoring of message delivery with detailed status for each number.
 - Twilio account with Account SID and Auth Token
 - Verified Twilio phone number for sending
 
-### One-Command Deployment
+### Simple Manual Deployment
 
-**Deploy your Twilio SMS app in under 5 minutes:**
+**Initial Deployment (First time):**
 
 ```bash
 # Connect to your EC2 instance
 ssh -i your-key.pem ubuntu@your-ec2-public-ip
 
-# Run the ultimate deployment script
+# Run the deployment script
 curl -fsSL https://raw.githubusercontent.com/hmali/TiwlioSMS/main/deploy.sh | sudo bash
 ```
 
-**That's it!** The script will:
+**Updating Existing Deployment:**
+
+```bash
+# Connect to your EC2 instance
+ssh -i your-key.pem ubuntu@your-ec2-public-ip
+
+# Run the update script
+curl -fsSL https://raw.githubusercontent.com/hmali/TiwlioSMS/main/update.sh | sudo bash
+```
+
+The deployment script will:
 - ✅ Install all system dependencies
 - ✅ Clone the latest code from GitHub
 - ✅ Set up Python environment and dependencies
-- ✅ Configure database and application structure
-- ✅ Create and configure systemd service
+- ✅ Configure database and application
+- ✅ Create systemd service
 - ✅ Set up Nginx reverse proxy
 - ✅ Start all services automatically
-- ✅ Verify deployment success
 
 ### Access Your Application
 
