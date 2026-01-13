@@ -79,3 +79,17 @@ yarn-error.log*
 
 # System service files (deployment specific)
 *.service
+
+# Uploads directory
+uploads/*
+!uploads/.gitkeep
+
+# Test files
+test_setup.py
+tsms.py
+phone_numbers.txt
+
+# Old backups
+*.old
+backup_*
+backups/

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GMADP - Global Messaging and Distribution Platform
+Twilio Bulk SMS Web Application
 Production-ready Flask application for sending bulk SMS via Twilio
 """
 
