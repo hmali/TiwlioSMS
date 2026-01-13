@@ -1,185 +1,116 @@
 # Twilio Bulk SMS Web Application
 
-A production-ready Flask web application for sending bulk SMS messages via Twilio with a user-friendly interface, campaign tracking, and delivery status monitoring.
+Production-ready Flask web application for sending bulk SMS messages via Twilio.
 
 ## 🚀 Features
 
-- 🔐 **Secure Authentication** - Login system with password change capability
-- 📱 **Bulk SMS Sending** - Send messages to hundreds of recipients
-- 📊 **Campaign Tracking** - Monitor message delivery status in real-time
-- 📁 **File Upload Support** - CSV and TXT phone number files
-- 📈 **Live Updates** - Real-time campaign progress monitoring
-- 🎯 **Message Statistics** - Character count and SMS count calculator
-- 🔧 **Easy Configuration** - Web-based Twilio credentials management
-- 📱 **Responsive Design** - Works on all devices
-- 🛡️ **Production Ready** - Built for deployment with HTTPS support
+- **Secure Authentication** - Login system with password change capability
+- **Bulk SMS Sending** - Send messages to hundreds of recipients  
+- **Campaign Tracking** - Real-time delivery status monitoring
+- **File Upload** - CSV and TXT phone number files supported
+- **Twilio Integration** - Easy credentials management
+- **HTTPS Ready** - SSL certificate automation included
+- **Auto Backups** - Daily database backups configured
 
 ## 📋 Prerequisites
 
-- Ubuntu Server 20.04+ (or similar Linux distribution)
+- Ubuntu Server 20.04+ (or Debian-based Linux)
 - Python 3.8+
-- Twilio account with Account SID and Auth Token
-- Verified Twilio phone number for sending SMS
 - Domain name (for HTTPS setup)
+- Twilio account (Account SID, Auth Token, Phone Number)
 
 ## 🔧 Installation
 
-### 1. System Setup
+### Quick Deploy
 
 ```bash
-# Update system packages
-sudo apt update && sudo apt upgrade -y
-
-# Install required system packages
-sudo apt install -y python3 python3-pip python3-venv nginx certbot python3-certbot-nginx
+# On your server
+git clone https://github.com/yourusername/TiwlioSMS.git
+cd TiwlioSMS
+chmod +x production-deploy.sh
+./production-deploy.sh
 ```
 
-### 2. Application Setup
+The script will:
+- Install all system dependencies
+- Create Python virtual environment
+- Install Python packages
+- Initialize database
+- Configure systemd service
+- Setup Nginx reverse proxy
+- Install SSL certificate
+- Configure automatic backups
+- Setup firewall
+
+### Manual Installation
+
+If you prefer manual setup:
 
 ```bash
-# Clone the repository
-cd /var/www
-sudo git clone https://github.com/yourusername/TiwlioSMS.git
+# 1. Install system packages
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y python3 python3-pip python3-venv python3-full nginx certbot python3-certbot-nginx ufw git
+
+# 2. Clone repository
+git clone https://github.com/yourusername/TiwlioSMS.git
 cd TiwlioSMS
 
-# Set proper permissions
-sudo chown -R $USER:$USER /var/www/TiwlioSMS
-
-# Create Python virtual environment
+# 3. Create virtual environment
 python3 -m venv venv
 source venv/bin/activate
 
-# Install dependencies
+# 4. Install Python dependencies
+pip install --upgrade pip
 pip install -r requirements.txt
 
-# Initialize database
+# 5. Initialize database
 python3 -c "from app import init_db; init_db()"
+
+# 6. Run application
+gunicorn -c gunicorn_config.py app:app
 ```
 
-### 3. Configure Gunicorn Service
+## 🔑 Default Credentials
 
-Create systemd service file:
+**⚠️ CRITICAL: Change immediately after first login!**
 
-```bash
-sudo nano /etc/systemd/system/twiliosms.service
+```
+Username: admin
+Password: admin123
 ```
 
-Add the following content:
-
-```ini
-[Unit]
-Description=Twilio SMS Gunicorn Application
-After=network.target
-
-[Service]
-User=ubuntu
-Group=www-data
-WorkingDirectory=/var/www/TiwlioSMS
-Environment="PATH=/var/www/TiwlioSMS/venv/bin"
-Environment="SECRET_KEY=your-super-secret-key-change-this-in-production"
-ExecStart=/var/www/TiwlioSMS/venv/bin/gunicorn -c gunicorn_config.py app:app
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**Important:** Change `your-super-secret-key-change-this-in-production` to a strong random string!
-
-Start and enable the service:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl start twiliosms
-sudo systemctl enable twiliosms
-sudo systemctl status twiliosms
-```
-
-### 4. Configure Nginx for HTTPS
-
-Create Nginx configuration:
-
-```bash
-sudo nano /etc/nginx/sites-available/twiliosms
-```
-
-Add the following content:
-
-```nginx
-server {
-    listen 80;
-    server_name smsgajanannj.com www.smsgajanannj.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    client_max_body_size 16M;
-}
-```
-
-Enable the site:
-
-```bash
-sudo ln -s /etc/nginx/sites-available/twiliosms /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl restart nginx
-```
-
-### 5. Setup SSL Certificate (HTTPS)
-
-```bash
-# Get SSL certificate from Let's Encrypt
-sudo certbot --nginx -d smsgajanannj.com -d www.smsgajanannj.com
-
-# Follow the prompts and select option 2 to redirect HTTP to HTTPS
-
-# Test auto-renewal
-sudo certbot renew --dry-run
-```
-
-Your application will now be accessible at: **https://smsgajanannj.com**
-
-## 🔑 Default Login Credentials
-
-**⚠️ IMPORTANT: Change these immediately after first login!**
-
-- **Username:** `admin`
-- **Password:** `admin123`
-
-### Changing Default Credentials
-
+### Change Password:
 1. Login with default credentials
-2. Navigate to **Settings** → **Account Information**
-3. Click **Change Username & Password**
-4. Enter current password and set new credentials
-5. You will be logged out and need to login with new credentials
+2. Go to **Settings** → **Change Username & Password**
+3. Enter current password
+4. Set new username and password
+5. Click **Update Credentials**
+6. Re-login with new credentials
 
-## 📱 Usage Guide
+## 📱 Usage
 
 ### 1. Initial Setup
 
-1. Login to the application at https://smsgajanannj.com
-2. **Change default password immediately** (Settings → Change Username & Password)
-3. Configure Twilio credentials (Settings → Twilio Configuration):
-   - Enter your Twilio Account SID
-   - Enter your Twilio Auth Token
-   - Click "Save Twilio Configuration"
+After deployment:
 
-### 2. Sending Bulk SMS
+1. Access your application (http://your-server-ip or https://smsgajanannj.com)
+2. **Change default password immediately**
+3. Configure Twilio credentials:
+   - Go to **Settings** → **Twilio Configuration**
+   - Enter Account SID and Auth Token from [Twilio Console](https://console.twilio.com)
+   - Click **Save Configuration**
 
-1. Navigate to **Send SMS** from the dashboard
+### 2. Send Bulk SMS
+
+1. Navigate to **Send SMS**
 2. Enter campaign details:
-   - **Campaign Name:** Descriptive name for this campaign
-   - **From Number:** Your Twilio phone number (format: +1234567890)
-   - **Message:** Your SMS text (max 1600 characters)
-3. Upload phone numbers file (CSV or TXT format)
-4. Click "Send Bulk SMS"
+   - **Campaign Name**: Descriptive name
+   - **From Number**: Your Twilio phone number (format: +1234567890)
+   - **Message**: Your SMS text (max 1600 characters)
+3. Upload phone numbers file (CSV or TXT)
+4. Click **Send Bulk SMS**
 
-### 3. Phone Numbers File Format
+### 3. Phone Number File Format
 
 **Text File (.txt):**
 ```
@@ -195,72 +126,118 @@ Your application will now be accessible at: **https://smsgajanannj.com**
 +1555666777
 ```
 
-Or comma-separated:
+Or comma-separated on one line:
 ```
 +1234567890,+1987654321,+1555666777
 ```
 
-### 4. Monitoring Campaigns
+### 4. Monitor Campaigns
 
-- View all campaigns on the **Dashboard**
-- Click on any campaign to see detailed delivery status
+- View all campaigns on **Dashboard**
+- Click campaign name for detailed delivery status
 - Real-time updates show successful/failed sends
-- Export campaign data for reporting
 
-## 🔒 Security Best Practices
+## 🔒 Security
 
-1. **Change default credentials immediately**
-2. **Use strong passwords** (minimum 8 characters, mix of letters, numbers, symbols)
-3. **Keep Twilio credentials secure** - never share or commit to version control
-4. **Regular backups** of the SQLite database (`twilio_sms.db`)
+### Production Security Checklist
+
+- [x] Default credentials removed from login page
+- [x] Password hashing (werkzeug)
+- [x] SQL injection protection (parameterized queries)
+- [x] Secure file uploads
+- [x] HTTPS encryption
+- [x] Firewall configuration
+- [x] Secret key randomization
+
+### Best Practices
+
+1. **Change default password immediately**
+2. **Use strong passwords** (min 8 chars, mixed case, numbers, symbols)
+3. **Keep Twilio credentials secure**
+4. **Regular backups** (automated daily at 2 AM)
 5. **Monitor logs** for suspicious activity
-6. **Keep system updated**: `sudo apt update && sudo apt upgrade`
-7. **Firewall configuration**:
+6. **Keep system updated**:
    ```bash
-   sudo ufw allow 22/tcp    # SSH
-   sudo ufw allow 80/tcp    # HTTP
-   sudo ufw allow 443/tcp   # HTTPS
-   sudo ufw enable
+   sudo apt update && sudo apt upgrade -y
    ```
 
 ## 🔧 Maintenance
 
-### View Application Logs
+### View Logs
 
 ```bash
 # Application logs
 sudo journalctl -u twiliosms -f
 
 # Nginx logs
-sudo tail -f /var/log/nginx/access.log
-sudo tail -f /var/log/nginx/error.log
+sudo tail -f /var/log/nginx/twiliosms_error.log
+sudo tail -f /var/log/nginx/twiliosms_access.log
 ```
 
-### Restart Service
+### Restart Services
 
 ```bash
+# Restart application
 sudo systemctl restart twiliosms
+
+# Restart Nginx
 sudo systemctl restart nginx
+
+# Check status
+sudo systemctl status twiliosms
+```
+
+### Database Backup
+
+```bash
+# Manual backup
+cp twilio_sms.db backup_$(date +%Y%m%d).db
+
+# Automatic backups run daily at 2 AM
+# Verify cron job:
+crontab -l
 ```
 
 ### Update Application
 
 ```bash
-cd /var/www/TiwlioSMS
+cd ~/TiwlioSMS  # or /var/www/TiwlioSMS
 git pull origin main
 source venv/bin/activate
 pip install -r requirements.txt
 sudo systemctl restart twiliosms
 ```
 
-### Backup Database
+## 🌐 HTTPS Configuration
+
+The deployment script automatically configures HTTPS for **smsgajanannj.com**.
+
+### Prerequisites
+
+1. Point DNS A records to your server IP:
+   - `smsgajanannj.com` → Your-Server-IP
+   - `www.smsgajanannj.com` → Your-Server-IP
+
+2. Wait for DNS propagation (5-10 minutes)
+
+### Manual SSL Setup
+
+If you skipped SSL during deployment:
 
 ```bash
-# Create backup
-cp /var/www/TiwlioSMS/twilio_sms.db /var/www/TiwlioSMS/backup_$(date +%Y%m%d).db
+sudo certbot --nginx -d smsgajanannj.com -d www.smsgajanannj.com
+```
 
-# Automated daily backup (add to crontab)
-echo "0 2 * * * cp /var/www/TiwlioSMS/twilio_sms.db /var/www/TiwlioSMS/backup_\$(date +\%Y\%m\%d).db" | crontab -
+### Certificate Renewal
+
+Certificates auto-renew via systemd timer. To check:
+
+```bash
+# Check renewal timer
+sudo systemctl status certbot.timer
+
+# Test renewal
+sudo certbot renew --dry-run
 ```
 
 ## 🐛 Troubleshooting
@@ -268,49 +245,112 @@ echo "0 2 * * * cp /var/www/TiwlioSMS/twilio_sms.db /var/www/TiwlioSMS/backup_\$
 ### Application won't start
 
 ```bash
-# Check service status
-sudo systemctl status twiliosms
-
 # Check logs
 sudo journalctl -u twiliosms -n 50
+
+# Check if port is in use
+sudo netstat -tlnp | grep 8000
+
+# Verify Python environment
+source venv/bin/activate
+python3 -c "from app import init_db; init_db()"
 ```
 
-### Can't access via domain
+### Can't access application
 
 ```bash
-# Check Nginx status
+# Check Nginx
 sudo systemctl status nginx
-
-# Test Nginx configuration
 sudo nginx -t
 
-# Check DNS records
+# Check firewall
+sudo ufw status
+
+# Check DNS
 dig smsgajanannj.com
 ```
 
 ### SMS not sending
 
 1. Verify Twilio credentials in Settings
-2. Ensure Twilio phone number is verified
-3. Check phone number formats (+1234567890)
-4. Review campaign status for error messages
-5. Check Twilio console for account issues
+2. Check Twilio phone number is verified
+3. Verify phone number format (+1234567890)
+4. Check campaign status for error messages
+5. Review Twilio Console for account issues
+
+### Virtual Environment Issues
+
+If you get "venv not found" error:
+
+```bash
+cd ~/TiwlioSMS
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+## 📊 Architecture
+
+```
+Internet (HTTPS)
+    ↓
+Nginx (Port 80/443) - SSL Termination & Reverse Proxy
+    ↓
+Gunicorn (127.0.0.1:8000) - WSGI Application Server
+    ↓
+Flask Application (app.py) - Web Framework
+    ↓
+SQLite Database (twilio_sms.db) - Data Storage
+    ↓
+Twilio API - SMS Delivery
+```
+
+## 📁 Project Structure
+
+```
+TiwlioSMS/
+├── app.py                    # Main Flask application
+├── gunicorn_config.py        # Production server config
+├── requirements.txt          # Python dependencies
+├── production-deploy.sh      # Automated deployment
+├── README.md                 # This file
+├── .gitignore               # Git configuration
+├── templates/               # HTML templates
+│   ├── base.html
+│   ├── login.html
+│   ├── dashboard.html
+│   ├── send_sms.html
+│   ├── settings.html
+│   ├── campaign_status.html
+│   └── change_credentials.html
+├── static/                  # Static assets
+│   ├── css/style.css
+│   ├── js/app.js
+│   └── images/
+└── uploads/                 # File upload directory
+```
 
 ## 📞 Support
 
 For issues or questions:
-1. Check the troubleshooting section above
+
+1. Check troubleshooting section above
 2. Review application logs
-3. Consult Twilio documentation: https://www.twilio.com/docs
+3. Consult [Twilio Documentation](https://www.twilio.com/docs)
+4. Check [Flask Documentation](https://flask.palletsprojects.com/)
 
 ## 📄 License
 
-MIT License - Feel free to use for personal or commercial projects
+MIT License - Free for personal and commercial use
 
 ## 🙏 Credits
 
-Built with Flask, Twilio API, and Bootstrap for a modern, responsive interface.
+Built with Flask, Twilio API, Bootstrap, and Gunicorn.
 
 ---
 
+**Production URL:** https://smsgajanannj.com  
+**Default Login:** admin / admin123 (⚠️ Change immediately!)  
 **Made with ❤️ for efficient bulk SMS campaigns**

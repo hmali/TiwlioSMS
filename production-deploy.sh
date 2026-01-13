@@ -9,8 +9,8 @@ echo "Twilio SMS App - Production Deployment"
 echo "=========================================="
 
 # Configuration
-APP_DIR="/var/www/TiwlioSMS"
-APP_USER="ubuntu"
+APP_DIR="$(pwd)"
+APP_USER="$(whoami)"
 DOMAIN="smsgajanannj.com"
 SUBDOMAIN="www.smsgajanannj.com"
 
@@ -20,42 +20,35 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Check if running as root
-if [ "$EUID" -eq 0 ]; then 
-    echo -e "${RED}Please do not run this script as root. Run as ubuntu user.${NC}"
-    exit 1
-fi
-
 echo -e "${GREEN}Step 1: Updating system packages...${NC}"
 sudo apt update && sudo apt upgrade -y
 
 echo -e "${GREEN}Step 2: Installing system dependencies...${NC}"
-sudo apt install -y python3 python3-pip python3-venv nginx certbot python3-certbot-nginx ufw git
+sudo apt install -y python3 python3-pip python3-venv python3-full nginx certbot python3-certbot-nginx ufw git
 
-echo -e "${GREEN}Step 3: Creating application directory...${NC}"
-if [ ! -d "$APP_DIR" ]; then
-    sudo mkdir -p "$APP_DIR"
-    sudo chown -R $APP_USER:$APP_USER "$APP_DIR"
+echo -e "${GREEN}Step 3: Setting up Python virtual environment...${NC}"
+# Remove old venv if exists
+if [ -d "venv" ]; then
+    echo "Removing old virtual environment..."
+    rm -rf venv
 fi
 
-cd "$APP_DIR"
+# Create fresh virtual environment
+python3 -m venv venv
 
-echo -e "${GREEN}Step 4: Setting up Python virtual environment...${NC}"
-if [ ! -d "venv" ]; then
-    python3 -m venv venv
-fi
+# Activate virtual environment
 source venv/bin/activate
 
-echo -e "${GREEN}Step 5: Installing Python dependencies...${NC}"
+echo -e "${GREEN}Step 4: Installing Python dependencies...${NC}"
 pip install --upgrade pip
 pip install -r requirements.txt
 
-echo -e "${GREEN}Step 6: Initializing database...${NC}"
+echo -e "${GREEN}Step 5: Initializing database...${NC}"
 python3 -c "from app import init_db; init_db()"
 echo -e "${YELLOW}Default login - Username: admin, Password: admin123${NC}"
 echo -e "${RED}IMPORTANT: Change these credentials after first login!${NC}"
 
-echo -e "${GREEN}Step 7: Creating systemd service...${NC}"
+echo -e "${GREEN}Step 6: Creating systemd service...${NC}"
 sudo tee /etc/systemd/system/twiliosms.service > /dev/null <<EOF
 [Unit]
 Description=Twilio SMS Gunicorn Application
@@ -75,13 +68,16 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-echo -e "${GREEN}Step 8: Starting application service...${NC}"
+echo -e "${GREEN}Step 7: Starting application service...${NC}"
 sudo systemctl daemon-reload
 sudo systemctl enable twiliosms
 sudo systemctl start twiliosms
+
+# Wait for service to start
+sleep 3
 sudo systemctl status twiliosms --no-pager
 
-echo -e "${GREEN}Step 9: Configuring Nginx...${NC}"
+echo -e "${GREEN}Step 8: Configuring Nginx...${NC}"
 sudo tee /etc/nginx/sites-available/twiliosms > /dev/null <<EOF
 server {
     listen 80;
@@ -112,17 +108,17 @@ sudo rm -f /etc/nginx/sites-enabled/default
 # Test Nginx configuration
 sudo nginx -t
 
-echo -e "${GREEN}Step 10: Restarting Nginx...${NC}"
+echo -e "${GREEN}Step 9: Restarting Nginx...${NC}"
 sudo systemctl restart nginx
 
-echo -e "${GREEN}Step 11: Configuring firewall...${NC}"
+echo -e "${GREEN}Step 10: Configuring firewall...${NC}"
 sudo ufw --force enable
 sudo ufw allow 22/tcp
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw status
 
-echo -e "${GREEN}Step 12: Setting up SSL certificate...${NC}"
+echo -e "${GREEN}Step 11: Setting up SSL certificate...${NC}"
 echo -e "${YELLOW}Make sure your domain DNS is pointing to this server's IP address!${NC}"
 read -p "Do you want to setup SSL certificate now? (y/n): " -n 1 -r
 echo
@@ -140,21 +136,24 @@ else
     echo -e "sudo certbot --nginx -d $DOMAIN -d $SUBDOMAIN"
 fi
 
-echo -e "${GREEN}Step 13: Setting up automatic backups...${NC}"
+echo -e "${GREEN}Step 12: Setting up automatic backups...${NC}"
+# Create backup directory
+mkdir -p $APP_DIR/backups
+
 # Create backup script
-sudo tee /usr/local/bin/backup-twiliosms-db.sh > /dev/null <<'EOF'
+sudo tee /usr/local/bin/backup-twiliosms-db.sh > /dev/null <<'BACKUPEOF'
 #!/bin/bash
-BACKUP_DIR="/var/www/TiwlioSMS/backups"
+BACKUP_DIR="$HOME/TiwlioSMS/backups"
 mkdir -p $BACKUP_DIR
-cp /var/www/TiwlioSMS/twilio_sms.db $BACKUP_DIR/backup_$(date +%Y%m%d_%H%M%S).db
+cp $HOME/TiwlioSMS/twilio_sms.db $BACKUP_DIR/backup_$(date +%Y%m%d_%H%M%S).db
 # Keep only last 30 backups
 cd $BACKUP_DIR && ls -t | tail -n +31 | xargs -r rm --
-EOF
+BACKUPEOF
 
 sudo chmod +x /usr/local/bin/backup-twiliosms-db.sh
 
 # Add to crontab (daily at 2 AM)
-(crontab -l 2>/dev/null; echo "0 2 * * * /usr/local/bin/backup-twiliosms-db.sh") | crontab -
+(crontab -l 2>/dev/null | grep -v backup-twiliosms; echo "0 2 * * * /usr/local/bin/backup-twiliosms-db.sh") | crontab -
 
 echo -e "${GREEN}=========================================="
 echo -e "Deployment Complete!"
@@ -185,4 +184,3 @@ echo -e "  2. Change the default password (Settings → Change Username & Passwo
 echo -e "  3. Configure Twilio credentials (Settings → Twilio Configuration)"
 echo -e "  4. Start sending SMS campaigns!"
 echo ""
-echo -e "${GREEN}For support, check the README.md file${NC}"

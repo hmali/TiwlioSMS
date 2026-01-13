@@ -1,3 +1,6 @@
+# Gunicorn Production Configuration
+# Twilio SMS Application
+
 bind = "127.0.0.1:8000"
 workers = 4
 worker_class = "sync"
@@ -7,6 +10,6 @@ keepalive = 2
 max_requests = 1000
 max_requests_jitter = 100
 preload_app = True
-accesslog = "-"  # Log to stdout
-errorlog = "-"   # Log to stderr
+accesslog = "-"
+errorlog = "-"
 loglevel = "info"
