@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Auto-Reply Settings - GMADP Communication Platform{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5><i class="fas fa-reply"></i> Auto-Reply Configuration</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="auto_reply_message" class="form-label">Auto-Reply Message</label>
+                        <textarea class="form-control" id="auto_reply_message" name="auto_reply_message" 
+                                  rows="5" required>{{ current_message }}</textarea>
+                        <div class="form-text">
+                            This message will be automatically sent to anyone who texts your Twilio number.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <strong>Character count:</strong> 
+                            <span id="char-count">{{ current_message|length }}</span> / 1600
+                        </small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Auto-Reply Message
+                    </button>
+                    <a href="{{ url_for('inbound_messages') }}" class="btn btn-secondary">
+                        <i class="fas fa-inbox"></i> View Inbound Messages
+                    </a>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-magic"></i> Message Preview</h6>
+            </div>
+            <div class="card-body">
+                <div class="p-3 bg-light border rounded">
+                    <div id="message-preview">{{ current_message }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-lightbulb"></i> Tips for Auto-Reply</h6>
+            </div>
+            <div class="card-body">
+                <ul class="small">
+                    <li>Keep message clear and concise</li>
+                    <li>Include contact information if needed</li>
+                    <li>Set expectations (e.g., "not monitored")</li>
+                    <li>Keep under 160 characters for single SMS</li>
+                    <li>Be professional and courteous</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-cog"></i> Webhook Configuration</h6>
+            </div>
+            <div class="card-body small">
+                <p><strong>Webhook URL:</strong></p>
+                <div class="bg-light p-2 rounded mb-2">
+                    <code>https://smsgajanannj.com/sms/inbound</code>
+                </div>
+                
+                <p class="mb-1"><strong>Method:</strong> POST</p>
+                
+                <div class="alert alert-warning mt-3 small">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    Configure this in your Twilio Console under your phone number's messaging settings.
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> How It Works</h6>
+            </div>
+            <div class="card-body small">
+                <ol class="mb-0">
+                    <li>Someone sends SMS to your Twilio number</li>
+                    <li>Twilio forwards it to your webhook</li>
+                    <li>Your app logs the message</li>
+                    <li>Auto-reply is sent immediately</li>
+                    <li>Both stored in inbound messages</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Character counter
+document.getElementById('auto_reply_message').addEventListener('input', function() {
+    const count = this.value.length;
+    document.getElementById('char-count').textContent = count;
+    document.getElementById('message-preview').textContent = this.value;
+    
+    // Warning if too long
+    const counterEl = document.getElementById('char-count');
+    if (count > 1600) {
+        counterEl.classList.add('text-danger');
+        counterEl.classList.remove('text-muted');
+    } else {
+        counterEl.classList.add('text-muted');
+        counterEl.classList.remove('text-danger');
+    }
+});
+</script>
+{% endblock %}

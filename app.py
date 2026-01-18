@@ -2,6 +2,7 @@
 """
 Twilio Bulk SMS Web Application
 Production-ready Flask application for sending bulk SMS via Twilio
+Includes auto-reply functionality for inbound SMS
 """
 
 import os
@@ -16,9 +17,10 @@ import sqlite3
 from threading import Thread
 import time
 
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, Response
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioException
+from twilio.twiml.messaging_response import MessagingResponse
 
 # Configure logging
 logging.basicConfig(
@@ -35,6 +37,13 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
+
+# Auto-reply message configuration (configurable via environment variable)
+AUTO_REPLY_MESSAGE = os.getenv(
+    "AUTO_REPLY_MESSAGE",
+    "Jai Gajanan, Thank you for your message. Incoming messages on this number are not monitored. "
+    "Please contact us if you need additional information."
+)
 
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -85,6 +94,19 @@ def init_db():
             error_message TEXT,
             sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (campaign_id) REFERENCES campaigns (id)
+        )
+    ''')
+    
+    # Inbound messages table (for auto-reply tracking)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS inbound_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            from_number TEXT NOT NULL,
+            to_number TEXT,
+            message_body TEXT,
+            message_sid TEXT,
+            reply_sent BOOLEAN DEFAULT 0,
+            received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
@@ -516,6 +538,97 @@ def api_campaign_status(campaign_id):
         })
     else:
         return jsonify({'error': 'Campaign not found'}), 404
+
+# ============================================================================
+# AUTO-REPLY WEBHOOK ROUTES (for inbound SMS)
+# ============================================================================
+
+@app.route('/health')
+def health():
+    """Health check endpoint for monitoring"""
+    return jsonify({"status": "ok", "service": "TwilioSMS"}), 200
+
+@app.route('/sms/inbound', methods=['POST'])
+def sms_inbound():
+    """
+    Twilio webhook for inbound SMS messages
+    Automatically replies with configured message
+    
+    Twilio POST fields:
+    - From: sender's phone number
+    - To: recipient's phone number (your Twilio number)
+    - Body: message text
+    - MessageSid: unique message ID
+    """
+    # Get message details from Twilio POST
+    from_number = request.form.get("From", "")
+    to_number = request.form.get("To", "")
+    body = request.form.get("Body", "")
+    msg_sid = request.form.get("MessageSid", "")
+    
+    # Log inbound message
+    logger.info(f"Inbound SMS: From={from_number} To={to_number} SID={msg_sid} Body={body}")
+    
+    # Store in database
+    try:
+        conn = sqlite3.connect('twilio_sms.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO inbound_messages (from_number, to_number, message_body, message_sid, reply_sent)
+            VALUES (?, ?, ?, ?, 1)
+        ''', (from_number, to_number, body, msg_sid))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"Error storing inbound message: {str(e)}")
+    
+    # Create TwiML response with auto-reply
+    resp = MessagingResponse()
+    resp.message(AUTO_REPLY_MESSAGE)
+    
+    logger.info(f"Auto-reply sent to {from_number}")
+    
+    return Response(str(resp), mimetype="text/xml")
+
+@app.route('/inbound-messages')
+@login_required
+def inbound_messages():
+    """View inbound messages (admin only)"""
+    conn = sqlite3.connect('twilio_sms.db')
+    cursor = conn.cursor()
+    
+    # Get recent inbound messages
+    cursor.execute('''
+        SELECT id, from_number, to_number, message_body, message_sid, reply_sent, received_at
+        FROM inbound_messages 
+        ORDER BY received_at DESC
+        LIMIT 100
+    ''')
+    
+    messages = cursor.fetchall()
+    conn.close()
+    
+    return render_template('inbound_messages.html', messages=messages)
+
+@app.route('/settings/auto-reply', methods=['GET', 'POST'])
+@login_required
+def settings_auto_reply():
+    """Configure auto-reply message (stored in environment/config)"""
+    global AUTO_REPLY_MESSAGE
+    
+    if request.method == 'POST':
+        new_message = request.form.get('auto_reply_message', '').strip()
+        
+        if new_message:
+            AUTO_REPLY_MESSAGE = new_message
+            flash('Auto-reply message updated successfully!', 'success')
+            logger.info(f"Auto-reply message updated by user {session['username']}")
+        else:
+            flash('Auto-reply message cannot be empty', 'error')
+        
+        return redirect(url_for('settings_auto_reply'))
+    
+    return render_template('settings_auto_reply.html', current_message=AUTO_REPLY_MESSAGE)
 
 if __name__ == '__main__':
     init_db()
