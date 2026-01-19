@@ -37,22 +37,30 @@
                             <i class="fas fa-inbox"></i> Inbound
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('settings') }}">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-cog"></i> Settings
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('settings') }}">
+                                <i class="fas fa-key"></i> Twilio Credentials
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('settings_auto_reply') }}">
+                                <i class="fas fa-reply"></i> Auto-Reply Message
+                            </a></li>
+                        </ul>
                     </li>
                 </ul>
                 <ul class="navbar-nav">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-user"></i> {{ session.username }}
-                            {% if session.username == 'admin' %}
+                            {% if session.get('is_default_password', False) %}
                                 <span class="badge bg-warning ms-1" title="Default credentials - Please change!">!</span>
                             {% endif %}
                         </a>
                         <ul class="dropdown-menu">
-                            {% if session.username == 'admin' %}
+                            {% if session.get('is_default_password', False) %}
                             <li><a class="dropdown-item text-warning" href="{{ url_for('change_credentials') }}">
                                 <i class="fas fa-exclamation-triangle"></i> Change Default Password
                             </a></li>

@@ -1,356 +1,395 @@
-# Twilio Bulk SMS Web Application
+# TwilioSMS GMADP - Production Ready ✅
 
-Production-ready Flask web application for sending bulk SMS messages via Twilio.
+**Bulk SMS Communication Platform with Auto-Reply**  
+Version 2.0 | Production Ready | Database-Backed
 
-## 🚀 Features
+---
 
-- **Secure Authentication** - Login system with password change capability
-- **Bulk SMS Sending** - Send messages to hundreds of recipients  
-- **Campaign Tracking** - Real-time delivery status monitoring
-- **File Upload** - CSV and TXT phone number files supported
-- **Twilio Integration** - Easy credentials management
-- **HTTPS Ready** - SSL certificate automation included
-- **Auto Backups** - Daily database backups configured
+## 🚀 Quick Start
 
-## 📋 Prerequisites
+```bash
+pip3 install -r requirements.txt
+python3 migrate_db.py
+sudo ./production-deploy.sh
+```
 
-- Ubuntu Server 20.04+ (or Debian-based Linux)
+**Login:** `admin` / `admin123` ⚠️ **Change immediately!**
+
+---
+
+## ✨ Features
+
+- 📱 **Bulk SMS Campaigns** - Send to thousands from CSV/TXT files
+- 🔄 **Auto-Reply System** - Configurable via web UI, database-backed
+- 📊 **Campaign Tracking** - Real-time monitoring
+- 🔐 **Password Warnings** - Tracks default password usage
+- 💾 **Persistent Config** - All settings in database
+- 🔧 **Production Ready** - Gunicorn + auto-migration + thread-safe
+
+---
+
+## 🎯 What's Fixed (v2.0)
+
+### ✅ Issue #1: Auto-Reply Configuration - FIXED
+**Before:** Hardcoded in environment variable, no GUI, lost on restart  
+**After:** Database storage with web interface at `/settings/auto-reply`
+
+**Benefits:**
+- Thread-safe for multiple Gunicorn workers
+- Persists across server restarts
+- Easy configuration via web UI
+- Real-time preview and character counter
+
+### ✅ Issue #2: Password Warning Tracking - FIXED
+**Before:** Warning based on `username == 'admin'` (always showed)  
+**After:** Database flag `is_default_password` column
+
+**Benefits:**
+- Warning only shows when using default password
+- Disappears immediately after password change
+- Session-based tracking
+- Database-backed persistence
+
+---
+
+## 📦 Installation
+
+### Prerequisites
 - Python 3.8+
-- Domain name (for HTTPS setup)
-- Twilio account (Account SID, Auth Token, Phone Number)
-
-## 🔧 Installation
+- Twilio account with active phone number
+- Linux/macOS server (Ubuntu 20.04+ recommended)
 
 ### Quick Deploy
 
 ```bash
-# On your server
-git clone https://github.com/yourusername/TiwlioSMS.git
-cd TiwlioSMS
-chmod +x production-deploy.sh
-./production-deploy.sh
-```
-
-The script will:
-- Install all system dependencies
-- Create Python virtual environment
-- Install Python packages
-- Initialize database
-- Configure systemd service
-- Setup Nginx reverse proxy
-- Install SSL certificate
-- Configure automatic backups
-- Setup firewall
-
-### Manual Installation
-
-If you prefer manual setup:
-
-```bash
-# 1. Install system packages
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3 python3-pip python3-venv python3-full nginx certbot python3-certbot-nginx ufw git
-
-# 2. Clone repository
-git clone https://github.com/yourusername/TiwlioSMS.git
+# Clone repository
+git clone <your-repo-url>
 cd TiwlioSMS
 
-# 3. Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
+# Install dependencies
+pip3 install -r requirements.txt
 
-# 4. Install Python dependencies
-pip install --upgrade pip
-pip install -r requirements.txt
+# Set environment variables (optional)
+export SECRET_KEY='your-random-secret-key-here'
 
-# 5. Initialize database
-python3 -c "from app import init_db; init_db()"
+# Initialize database (auto-migrates if exists)
+python3 migrate_db.py
 
-# 6. Run application
-gunicorn -c gunicorn_config.py app:app
+# Deploy to production
+sudo ./production-deploy.sh
 ```
-
-## 🔑 Default Credentials
-
-**⚠️ CRITICAL: Change immediately after first login!**
-
-```
-Username: admin
-Password: admin123
-```
-
-### Change Password:
-1. Login with default credentials
-2. Go to **Settings** → **Change Username & Password**
-3. Enter current password
-4. Set new username and password
-5. Click **Update Credentials**
-6. Re-login with new credentials
-
-## 📱 Usage
-
-### 1. Initial Setup
-
-After deployment:
-
-1. Access your application (http://your-server-ip or https://smsgajanannj.com)
-2. **Change default password immediately**
-3. Configure Twilio credentials:
-   - Go to **Settings** → **Twilio Configuration**
-   - Enter Account SID and Auth Token from [Twilio Console](https://console.twilio.com)
-   - Click **Save Configuration**
-
-### 2. Send Bulk SMS
-
-1. Navigate to **Send SMS**
-2. Enter campaign details:
-   - **Campaign Name**: Descriptive name
-   - **From Number**: Your Twilio phone number (format: +1234567890)
-   - **Message**: Your SMS text (max 1600 characters)
-3. Upload phone numbers file (CSV or TXT)
-4. Click **Send Bulk SMS**
-
-### 3. Phone Number File Format
-
-**Text File (.txt):**
-```
-+1234567890
-+1987654321
-+1555666777
-```
-
-**CSV File (.csv):**
-```csv
-+1234567890
-+1987654321
-+1555666777
-```
-
-Or comma-separated on one line:
-```
-+1234567890,+1987654321,+1555666777
-```
-
-### 4. Monitor Campaigns
-
-- View all campaigns on **Dashboard**
-- Click campaign name for detailed delivery status
-- Real-time updates show successful/failed sends
-
-## 🔒 Security
-
-### Production Security Checklist
-
-- [x] Default credentials removed from login page
-- [x] Password hashing (werkzeug)
-- [x] SQL injection protection (parameterized queries)
-- [x] Secure file uploads
-- [x] HTTPS encryption
-- [x] Firewall configuration
-- [x] Secret key randomization
-
-### Best Practices
-
-1. **Change default password immediately**
-2. **Use strong passwords** (min 8 chars, mixed case, numbers, symbols)
-3. **Keep Twilio credentials secure**
-4. **Regular backups** (automated daily at 2 AM)
-5. **Monitor logs** for suspicious activity
-6. **Keep system updated**:
-   ```bash
-   sudo apt update && sudo apt upgrade -y
-   ```
-
-## 🔧 Maintenance
-
-### View Logs
-
-```bash
-# Application logs
-sudo journalctl -u twiliosms -f
-
-# Nginx logs
-sudo tail -f /var/log/nginx/twiliosms_error.log
-sudo tail -f /var/log/nginx/twiliosms_access.log
-```
-
-### Restart Services
-
-```bash
-# Restart application
-sudo systemctl restart twiliosms
-
-# Restart Nginx
-sudo systemctl restart nginx
-
-# Check status
-sudo systemctl status twiliosms
-```
-
-### Database Backup
-
-```bash
-# Manual backup
-cp twilio_sms.db backup_$(date +%Y%m%d).db
-
-# Automatic backups run daily at 2 AM
-# Verify cron job:
-crontab -l
-```
-
-### Update Application
-
-```bash
-cd ~/TiwlioSMS  # or /var/www/TiwlioSMS
-git pull origin main
-source venv/bin/activate
-pip install -r requirements.txt
-sudo systemctl restart twiliosms
-```
-
-## 🌐 HTTPS Configuration
-
-The deployment script automatically configures HTTPS for **smsgajanannj.com**.
-
-### Prerequisites
-
-1. Point DNS A records to your server IP:
-   - `smsgajanannj.com` → Your-Server-IP
-   - `www.smsgajanannj.com` → Your-Server-IP
-
-2. Wait for DNS propagation (5-10 minutes)
-
-### Manual SSL Setup
-
-If you skipped SSL during deployment:
-
-```bash
-sudo certbot --nginx -d smsgajanannj.com -d www.smsgajanannj.com
-```
-
-### Certificate Renewal
-
-Certificates auto-renew via systemd timer. To check:
-
-```bash
-# Check renewal timer
-sudo systemctl status certbot.timer
-
-# Test renewal
-sudo certbot renew --dry-run
-```
-
-## 🐛 Troubleshooting
-
-### Application won't start
-
-```bash
-# Check logs
-sudo journalctl -u twiliosms -n 50
-
-# Check if port is in use
-sudo netstat -tlnp | grep 8000
-
-# Verify Python environment
-source venv/bin/activate
-python3 -c "from app import init_db; init_db()"
-```
-
-### Can't access application
-
-```bash
-# Check Nginx
-sudo systemctl status nginx
-sudo nginx -t
-
-# Check firewall
-sudo ufw status
-
-# Check DNS
-dig smsgajanannj.com
-```
-
-### SMS not sending
-
-1. Verify Twilio credentials in Settings
-2. Check Twilio phone number is verified
-3. Verify phone number format (+1234567890)
-4. Check campaign status for error messages
-5. Review Twilio Console for account issues
-
-### Virtual Environment Issues
-
-If you get "venv not found" error:
-
-```bash
-cd ~/TiwlioSMS
-rm -rf venv
-python3 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-## 📊 Architecture
-
-```
-Internet (HTTPS)
-    ↓
-Nginx (Port 80/443) - SSL Termination & Reverse Proxy
-    ↓
-Gunicorn (127.0.0.1:8000) - WSGI Application Server
-    ↓
-Flask Application (app.py) - Web Framework
-    ↓
-SQLite Database (twilio_sms.db) - Data Storage
-    ↓
-Twilio API - SMS Delivery
-```
-
-## 📁 Project Structure
-
-```
-TiwlioSMS/
-├── app.py                    # Main Flask application
-├── gunicorn_config.py        # Production server config
-├── requirements.txt          # Python dependencies
-├── production-deploy.sh      # Automated deployment
-├── README.md                 # This file
-├── .gitignore               # Git configuration
-├── templates/               # HTML templates
-│   ├── base.html
-│   ├── login.html
-│   ├── dashboard.html
-│   ├── send_sms.html
-│   ├── settings.html
-│   ├── campaign_status.html
-│   └── change_credentials.html
-├── static/                  # Static assets
-│   ├── css/style.css
-│   ├── js/app.js
-│   └── images/
-└── uploads/                 # File upload directory
-```
-
-## 📞 Support
-
-For issues or questions:
-
-1. Check troubleshooting section above
-2. Review application logs
-3. Consult [Twilio Documentation](https://www.twilio.com/docs)
-4. Check [Flask Documentation](https://flask.palletsprojects.com/)
-
-## 📄 License
-
-MIT License - Free for personal and commercial use
-
-## 🙏 Credits
-
-Built with Flask, Twilio API, Bootstrap, and Gunicorn.
 
 ---
 
-**Production URL:** https://smsgajanannj.com  
-**Default Login:** admin / admin123 (⚠️ Change immediately!)  
-**Made with ❤️ for efficient bulk SMS campaigns**
+## 🔧 Configuration
+
+### 1. Initial Login
+- URL: `http://your-server-ip:5000`
+- Username: `admin`
+- Password: `admin123`
+- ⚠️ **Change password immediately via User Menu → Change Credentials**
+
+### 2. Twilio Setup
+1. Navigate to **Settings → Twilio Credentials**
+2. Enter your Twilio Account SID
+3. Enter your Twilio Auth Token
+4. Enter your Twilio phone number
+5. Click **Save**
+
+### 3. Auto-Reply Configuration
+1. Navigate to **Settings → Auto-Reply Message**
+2. Edit the message text (character counter shows length)
+3. Preview your changes
+4. Click **Save Changes**
+5. Configure Twilio webhook:
+   - URL: `https://your-domain.com/sms/inbound`
+   - Method: `POST`
+   - Event: `Incoming Messages`
+
+---
+
+## 📱 Usage
+
+### Send Bulk SMS Campaign
+
+1. **Prepare phone numbers file**
+   - Format: CSV or TXT
+   - One number per line or comma-separated
+   - Example: `+1234567890` or `1234567890`
+
+2. **Create campaign**
+   - Click **Send SMS** in navigation
+   - Enter campaign name
+   - Write message (160 chars recommended for single SMS)
+   - Enter your Twilio phone number
+   - Upload phone numbers file
+   - Click **Send SMS**
+
+3. **Monitor progress**
+   - Real-time status updates
+   - View successful/failed sends
+   - Check individual message statuses
+   - Export results
+
+### Configure Auto-Reply
+
+1. Navigate to **Settings → Auto-Reply Message**
+2. Edit message in the text area
+3. View live preview and character count
+4. Click **Save Changes**
+5. Test by sending SMS to your Twilio number
+
+### Change Credentials
+
+1. Click username dropdown → **Change Credentials**
+2. Enter current password
+3. Enter new username (optional)
+4. Enter new password (minimum 6 characters)
+5. Confirm new password
+6. Click **Save** (will logout for security)
+
+---
+
+## 📁 File Structure
+
+```
+TiwlioSMS/
+├── app.py                      # Main Flask application (651 lines)
+├── migrate_db.py               # Database initialization
+├── gunicorn_config.py          # Production server config
+├── requirements.txt            # Python dependencies
+├── production-deploy.sh        # Deployment automation script
+├── commit-and-push.sh          # Git helper script
+├── README.md                   # This file
+├── PRODUCTION_DEPLOYMENT.md    # Detailed deployment guide
+├── .env                        # Environment variables
+├── .env.example                # Environment template
+├── .gitignore                  # Git ignore patterns
+├── twilio_sms.db              # SQLite database
+├── templates/                  # HTML templates (9 files)
+│   ├── base.html              # Base with navigation
+│   ├── dashboard.html         # Main dashboard
+│   ├── login.html             # Login page
+│   ├── send_sms.html          # Send SMS form
+│   ├── campaign_status.html   # Campaign details
+│   ├── settings.html          # Twilio credentials
+│   ├── settings_auto_reply.html  # ⭐ NEW: Auto-reply config
+│   ├── change_credentials.html   # Password change
+│   └── inbound_messages.html     # Incoming SMS log
+└── static/                    # Static assets
+    ├── css/style.css          # Custom styles
+    ├── js/app.js              # JavaScript
+    └── images/
+        └── gmadp-logo.png     # Logo
+```
+
+---
+
+## 🗄️ Database
+
+### Auto-Migration
+✅ **Built into app.py** - Automatically runs on startup  
+✅ **Upgrades existing databases** - No manual migration needed  
+✅ **Safe** - Checks for existing columns before adding
+
+### Tables
+
+**users** - User accounts
+- `id`, `username`, `password_hash`
+- `twilio_sid`, `twilio_token`
+- `is_default_password` ⭐ NEW - Tracks default password
+- `created_at`
+
+**campaigns** - SMS campaigns
+- `id`, `user_id`, `name`, `message_body`
+- `total_numbers`, `successful_sends`, `failed_sends`
+- `status`, `created_at`, `completed_at`
+
+**message_status** - Individual SMS tracking
+- `id`, `campaign_id`, `phone_number`
+- `message_sid`, `status`, `error_message`
+- `sent_at`
+
+**inbound_messages** - Incoming SMS log
+- `id`, `from_number`, `to_number`
+- `message_body`, `message_sid`
+- `reply_sent`, `received_at`
+
+**settings** - Application configuration ⭐ NEW
+- `id`, `setting_key`, `setting_value`
+- `updated_at`
+
+---
+
+## 🔐 Security
+
+### Production Checklist
+- [ ] Change default admin password
+- [ ] Set `SECRET_KEY` environment variable
+- [ ] Use HTTPS/SSL (Let's Encrypt recommended)
+- [ ] Secure database: `chmod 600 twilio_sms.db`
+- [ ] Enable firewall (allow ports 80, 443 only)
+- [ ] Regular database backups
+- [ ] Keep dependencies updated
+
+### Password Security
+- ✅ PBKDF2 hashing (Werkzeug)
+- ✅ Session-based authentication
+- ✅ Auto-logout on password change
+- ✅ Default password warnings
+
+---
+
+## 📊 API Endpoints
+
+### Web Routes
+- `GET /` - Home (redirects to dashboard)
+- `GET/POST /login` - User login
+- `GET /logout` - User logout
+- `GET /dashboard` - Main dashboard
+- `GET/POST /settings` - Twilio credentials
+- `GET/POST /settings/auto-reply` - ⭐ Auto-reply config
+- `GET/POST /change-credentials` - Password change
+- `GET/POST /send_sms` - Send bulk SMS
+- `GET /campaign/<id>` - Campaign status
+- `GET /inbound-messages` - View incoming SMS
+
+### Webhook Routes
+- `POST /sms/inbound` - Twilio webhook for incoming SMS
+- `GET /health` - Health check endpoint
+
+### API Routes
+- `GET /api/campaign/<id>/status` - Campaign status (JSON)
+
+---
+
+## 🐛 Troubleshooting
+
+### Password warning still shows after change
+```bash
+# Check database
+sqlite3 twilio_sms.db "SELECT username, is_default_password FROM users;"
+# Should show 0 after password change
+
+# Solution: Logout and login again
+```
+
+### Auto-reply not persisting
+```bash
+# Check settings table
+sqlite3 twilio_sms.db "SELECT * FROM settings WHERE setting_key = 'auto_reply_message';"
+
+# Verify database permissions
+ls -l twilio_sms.db
+chmod 644 twilio_sms.db
+```
+
+### Database errors
+```bash
+# Backup and reinitialize
+cp twilio_sms.db twilio_sms.db.backup
+python3 migrate_db.py
+```
+
+### Gunicorn not starting
+```bash
+# Check service logs
+sudo journalctl -u twiliosms -n 50
+
+# Test manually
+gunicorn -c gunicorn_config.py app:app
+```
+
+---
+
+## 📚 Documentation
+
+- **README.md** (this file) - Quick start and overview
+- **PRODUCTION_DEPLOYMENT.md** - Complete deployment guide with Nginx/SSL setup
+
+---
+
+## 🤝 Common Questions
+
+**Q: Can multiple users have different Twilio accounts?**  
+A: Yes! Each user can configure their own Twilio credentials in Settings.
+
+**Q: How many SMS can I send at once?**  
+A: Limited by your Twilio account. The app includes 1-second delay between sends to prevent rate limiting.
+
+**Q: Is auto-reply customizable?**  
+A: Yes! Navigate to Settings → Auto-Reply Message for full web-based configuration.
+
+**Q: Does it work with multiple Gunicorn workers?**  
+A: Yes! All settings are database-backed (thread-safe).
+
+**Q: What happens to settings when I restart the server?**  
+A: All settings persist in the database - nothing is lost on restart.
+
+---
+
+## 🎉 Version History
+
+### v2.0 (Current - Production Ready)
+- ✅ Database-backed auto-reply configuration
+- ✅ Password change tracking with warnings
+- ✅ Settings table for persistent config
+- ✅ Auto-migration system
+- ✅ Thread-safe for production
+- ✅ Removed all global variables
+- ✅ Clean codebase (no duplicates)
+
+### v1.0 (Legacy)
+- Basic bulk SMS functionality
+- Hardcoded auto-reply message
+- Username-based password warnings
+
+---
+
+## 📝 Dependencies
+
+```
+Flask==3.0.0
+twilio==8.10.0
+gunicorn==21.2.0
+Werkzeug==3.0.1
+```
+
+See `requirements.txt` for complete list.
+
+---
+
+## 🚀 Post-Deployment Steps
+
+After running `./production-deploy.sh`:
+
+1. ✅ Access web interface: `http://your-server-ip:5000`
+2. ✅ Login with `admin` / `admin123`
+3. ✅ Change password immediately
+4. ✅ Configure Twilio credentials
+5. ✅ Set auto-reply message
+6. ✅ Test with sample SMS campaign
+7. ✅ Configure Twilio webhook URL
+8. ✅ Test auto-reply by sending SMS
+
+---
+
+## ✨ Status: Production Ready ✅
+
+All critical issues fixed with database-backed solutions:
+- ✅ Persistent auto-reply configuration
+- ✅ Password change tracking
+- ✅ Thread-safe implementation
+- ✅ Auto-migration
+- ✅ Clean codebase
+- ✅ Complete documentation
+
+**Ready to deploy!**
+
+---
+
+**Last Updated:** January 19, 2026  
+**Version:** 2.0 (Production)  
+**Maintained By:** GMADP Team
+
+For detailed deployment instructions, see [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)
