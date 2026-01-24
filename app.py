@@ -69,12 +69,28 @@ def set_auto_reply_message(message):
     try:
         conn = sqlite3.connect('twilio_sms.db')
         cursor = conn.cursor()
-        cursor.execute('''
-            INSERT OR REPLACE INTO settings (setting_key, setting_value, updated_at)
-            VALUES ('auto_reply_message', ?, CURRENT_TIMESTAMP)
-        ''', (message,))
+        
+        # Check if setting exists
+        cursor.execute("SELECT id FROM settings WHERE setting_key = 'auto_reply_message'")
+        exists = cursor.fetchone()
+        
+        if exists:
+            # Update existing record
+            cursor.execute('''
+                UPDATE settings 
+                SET setting_value = ?, updated_at = CURRENT_TIMESTAMP 
+                WHERE setting_key = 'auto_reply_message'
+            ''', (message,))
+        else:
+            # Insert new record
+            cursor.execute('''
+                INSERT INTO settings (setting_key, setting_value, updated_at)
+                VALUES ('auto_reply_message', ?, CURRENT_TIMESTAMP)
+            ''', (message,))
+        
         conn.commit()
         conn.close()
+        logger.info(f"Auto-reply message updated successfully: {len(message)} characters")
         return True
     except Exception as e:
         logger.error(f"Error setting auto-reply message: {str(e)}")
