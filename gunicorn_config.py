@@ -9,7 +9,10 @@ timeout = 30
 keepalive = 2
 max_requests = 1000
 max_requests_jitter = 100
-preload_app = True
+
+# preload_app = True  # DISABLED: Causes SQLite connection/caching issues
+# Each worker should load its own app instance for proper SQLite handling
+
 accesslog = "-"
 errorlog = "-"
 loglevel = "info"
