@@ -1,9 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - GMADP{% endblock %}
+{% block title %}Dashboard - GMADP Communication Platform{% endblock %}
 
 {% block content %}
-{% if session.username == 'admin' %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-5 mb-0">
+            <img src="{{ url_for('static', filename='images/gmadp-logo.png') }}" alt="GMADP Logo" height="60" class="me-3">
+            GMADP Communication Platform
+        </h1>
+        <p class="text-muted">Gajanan Maharaj America Devotees Parivar</p>
+    </div>
+</div>
+
+{% if session.get('is_default_password', False) %}
 <div class="alert alert-warning alert-dismissible fade show" role="alert">
     <div class="d-flex align-items-center">
         <i class="fas fa-exclamation-triangle fa-2x me-3"></i>

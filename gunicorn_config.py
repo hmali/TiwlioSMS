@@ -1,12 +1,18 @@
+# Gunicorn Production Configuration
+# Twilio SMS Application
+
 bind = "127.0.0.1:8000"
-workers = 2
+workers = 4
 worker_class = "sync"
 worker_connections = 1000
 timeout = 30
 keepalive = 2
 max_requests = 1000
 max_requests_jitter = 100
-preload_app = True
-access_logfile = "/opt/twilio-sms/logs/access.log"
-error_logfile = "/opt/twilio-sms/logs/error.log"
+
+# preload_app = True  # DISABLED: Causes SQLite connection/caching issues
+# Each worker should load its own app instance for proper SQLite handling
+
+accesslog = "-"
+errorlog = "-"
 loglevel = "info"

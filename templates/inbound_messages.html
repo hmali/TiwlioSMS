@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Inbound Messages - GMADP Communication Platform{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <h2><i class="fas fa-inbox"></i> Inbound Messages</h2>
+        <p class="text-muted">Recent messages received with auto-replies sent</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('settings_auto_reply') }}" class="btn btn-primary">
+            <i class="fas fa-cog"></i> Configure Auto-Reply
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if messages %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date/Time</th>
+                        <th>From Number</th>
+                        <th>To Number</th>
+                        <th>Message</th>
+                        <th>Message SID</th>
+                        <th>Reply Sent</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for msg in messages %}
+                    <tr>
+                        <td>{{ msg[6] }}</td>
+                        <td><span class="badge bg-info">{{ msg[1] }}</span></td>
+                        <td>{{ msg[2] }}</td>
+                        <td>
+                            <div style="max-width: 300px; white-space: normal;">
+                                {{ msg[3] }}
+                            </div>
+                        </td>
+                        <td><small class="text-muted">{{ msg[4] }}</small></td>
+                        <td>
+                            {% if msg[5] %}
+                                <span class="badge bg-success"><i class="fas fa-check"></i> Yes</span>
+                            {% else %}
+                                <span class="badge bg-warning"><i class="fas fa-times"></i> No</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">No inbound messages yet</h5>
+            <p class="text-muted">When someone sends an SMS to your Twilio number, it will appear here.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="alert alert-info mt-4">
+    <h6><i class="fas fa-info-circle"></i> How to Configure Twilio Webhook</h6>
+    <ol class="mb-0">
+        <li>Go to <a href="https://console.twilio.com" target="_blank">Twilio Console</a></li>
+        <li>Phone Numbers → Manage → Active Numbers → (select your number)</li>
+        <li>Under "Messaging", find "A MESSAGE COMES IN"</li>
+        <li>Set Webhook URL to: <code>https://smsgajanannj.com/sms/inbound</code></li>
+        <li>Set HTTP Method to: <strong>POST</strong></li>
+        <li>Click "Save"</li>
+    </ol>
+</div>
+{% endblock %}

@@ -1,307 +1,176 @@
-# GMADP - Global Messaging and Distribution Platform
+# TwilioSMS - Professional SMS Platform
 
-A production-ready Flask web application for sending bulk SMS messages via Twilio with a user-friendly interface, campaign tracking, and delivery status monitoring.
+Production-ready Flask application for bulk SMS campaigns and automated message handling via Twilio.
 
 ## Features
 
-- 🔐 **User Authentication** - Secure login system
-- 📱 **Bulk SMS Sending** - Send messages to hundreds of recipients
-- 📊 **Campaign Tracking** - Monitor message delivery status
-- 📁 **File Upload** - Support for CSV and TXT phone number files
-- 📈 **Real-time Updates** - Live campaign progress monitoring
-- 🎯 **Message Statistics** - Character count and SMS count calculator
-- 🔧 **Easy Configuration** - Web-based Twilio credentials setup
-- 📱 **Mobile Responsive** - Works on all devices
-- 🛡️ **Production Ready** - Built for EC2 deployment
-
-## Screenshots
-
-### Login Page
-Clean, secure login interface with default admin credentials.
-
-### Dashboard
-Overview of campaigns with success/failure statistics and quick actions.
-
-### Send SMS Campaign
-User-friendly form with file upload, message composition, and validation.
-
-### Campaign Status
-Real-time monitoring of message delivery with detailed status for each number.
+✅ **Bulk SMS Campaigns** - Upload CSV/TXT files and send to thousands of recipients  
+✅ **Auto-Reply System** - Configurable automatic responses to inbound messages  
+✅ **Campaign Tracking** - Real-time monitoring and detailed delivery reports  
+✅ **User Management** - Secure authentication with individual Twilio credentials  
+✅ **Inbound Logging** - Track and view all incoming SMS messages  
+✅ **Database Driven** - SQLite backend for campaigns, messages, and settings  
 
 ## Quick Start
 
-### Prerequisites
+### Production Deployment
 
-- Amazon EC2 instance (Ubuntu 20.04+ recommended)
-- Twilio account with Account SID and Auth Token
-- Verified Twilio phone number for sending
+**See [DEPLOYMENT.md](DEPLOYMENT.md) for complete production setup guide.**
 
-### Simple Manual Deployment
-
-**Initial Deployment (First time):**
+### Local Development
 
 ```bash
-# Connect to your EC2 instance
-ssh -i your-key.pem ubuntu@your-ec2-public-ip
+# Clone repository
+git clone https://github.com/hmali/TiwlioSMS.git
+cd TiwlioSMS
 
-# Run the deployment script
-curl -fsSL https://raw.githubusercontent.com/hmali/TiwlioSMS/main/deploy.sh | sudo bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run application
+python app.py
 ```
 
-**Updating Existing Deployment:**
-
-```bash
-# Connect to your EC2 instance
-ssh -i your-key.pem ubuntu@your-ec2-public-ip
-
-# Run the update script
-curl -fsSL https://raw.githubusercontent.com/hmali/TiwlioSMS/main/update.sh | sudo bash
-```
-
-The deployment script will:
-- ✅ Install all system dependencies
-- ✅ Clone the latest code from GitHub
-- ✅ Set up Python environment and dependencies
-- ✅ Configure database and application
-- ✅ Create systemd service
-- ✅ Set up Nginx reverse proxy
-- ✅ Start all services automatically
-
-### Access Your Application
-
-After successful deployment:
-- **URL:** `http://your-ec2-public-ip`
-- **Login:** `admin` / `admin123`
-- **⚠️ Important:** Change default credentials immediately!
-
-### Next Steps
-
-1. **Access the application** and login
-2. **Change default credentials** in Settings
-3. **Configure Twilio credentials** (Account SID, Auth Token, Phone Number)
-4. **Test SMS functionality**
-
-### Manual Installation (Alternative)
-
-If you prefer manual setup:
-
-1. **Clone Repository**
-   ```bash
-   git clone https://github.com/hmali/TiwlioSMS.git
-   cd TiwlioSMS
-   ```
-
-2. **Install Dependencies**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-3. **Initialize Database**
-   ```bash
-   python3 -c "from app import init_db; init_db()"
-   ```
-
-4. **Run Application**
-   ```bash
-   # Development
-   python3 app.py
-   
-   # Production
-   gunicorn -c gunicorn_config.py app:app
-   ```
-
-## Usage Guide
-
-### 1. Configure Twilio Credentials
-- Go to Settings page
-- Enter your Twilio Account SID and Auth Token
-- Save configuration
-
-### 2. Prepare Phone Numbers File
-Create a file with phone numbers in one of these formats:
-
-**Text File (.txt)**
-```
-+1234567890
-+1987654321
-+1555123456
-```
-
-**CSV File (.csv)**
-```
-+1234567890,+1987654321
-+1555123456
-```
-
-### 3. Send SMS Campaign
-- Go to Send SMS page
-- Enter campaign name and sender phone number
-- Upload phone numbers file
-- Compose your message
-- Confirm and send
-
-### 4. Monitor Campaign
-- View real-time progress on campaign status page
-- Check individual message delivery status
-- Download results for reporting
-
-## File Structure
-
-```
-twilio-sms-app/
-├── app.py                 # Main Flask application
-├── requirements.txt       # Python dependencies
-├── deploy.sh             # EC2 deployment script
-├── gunicorn_config.py    # Gunicorn configuration
-├── templates/            # HTML templates
-│   ├── base.html
-│   ├── login.html
-│   ├── dashboard.html
-│   ├── send_sms.html
-│   ├── campaign_status.html
-│   └── settings.html
-├── static/               # Static files
-│   ├── css/
-│   │   └── style.css
-│   └── js/
-│       └── app.js
-└── uploads/              # File upload directory
-```
+**Default Login:**
+- Username: `admin`
+- Password: `admin123`
+- ⚠️ **Change immediately after first login!**
 
 ## Configuration
 
-### Environment Variables
-```bash
-SECRET_KEY=your-secret-key-here
-FLASK_ENV=production
-FLASK_APP=app.py
+### 1. Twilio Credentials
+1. Get credentials from [Twilio Console](https://console.twilio.com)
+2. Login to application
+3. Settings → Configure Twilio credentials
+4. Enter Account SID and Auth Token
+
+### 2. Auto-Reply Message
+1. Settings → Auto-Reply Message
+2. Customize message text (max 1600 characters)
+3. Save changes
+
+### 3. Webhook Setup
+Configure in Twilio Console:
+- **URL:** `http://your-domain.com/sms/inbound`
+- **Method:** POST
+- **Event:** A MESSAGE COMES IN
+
+## Usage
+
+### Send Bulk SMS
+1. Navigate to "Send SMS Campaign"
+2. Upload phone numbers file (CSV or TXT)
+3. Enter campaign details and message
+4. Provide Twilio phone number (from your account)
+5. Send campaign
+
+### Phone Number Formats
+
+**CSV:**
+```csv
++1234567890,+0987654321
++1111111111,+2222222222
 ```
 
-### Database
-Uses SQLite for simplicity. Tables:
-- `users` - User accounts and Twilio credentials
-- `campaigns` - SMS campaign records
-- `message_status` - Individual message delivery status
-
-## Security Features
-
-- Password hashing with Werkzeug
-- Session management
-- File upload validation
-- SQL injection prevention
-- XSS protection
-- CSRF protection
-
-## Production Considerations
-
-### SSL/TLS Setup
-```bash
-# Install Certbot
-sudo apt install certbot python3-certbot-nginx
-
-# Get SSL certificate
-sudo certbot --nginx -d yourdomain.com
+**Text:**
+```
++1234567890
++0987654321
++1111111111
 ```
 
-### Monitoring
-```bash
-# View application logs
-sudo journalctl -u twilio-sms -f
+## Technology Stack
 
-# Check service status
-sudo systemctl status twilio-sms
+| Component | Technology |
+|-----------|-----------|
+| Backend | Flask 2.3.3 |
+| Database | SQLite 3 |
+| SMS Provider | Twilio API |
+| Web Server | Gunicorn |
+| Reverse Proxy | Nginx (production) |
+| Authentication | Werkzeug Security |
 
-# Restart service if needed
-sudo systemctl restart twilio-sms
+## Project Structure
+
+```
+TiwlioSMS/
+├── app.py                      # Main Flask application
+├── gunicorn_config.py          # Production server config
+├── requirements.txt            # Python dependencies
+├── DEPLOYMENT.md               # Production deployment guide
+├── static/                     # Static assets
+├── templates/                  # Jinja2 templates
+├── uploads/                    # Temporary uploads (auto-created)
+└── scripts/                    # Utility scripts (not deployed)
 ```
 
-### Backup
-```bash
-# Backup database
-cp /opt/twilio-sms-app/twilio_sms.db /backup/location/
+## Security
 
-# Backup uploads
-cp -r /opt/twilio-sms-app/uploads /backup/location/
+✅ Werkzeug password hashing  
+✅ Session-based authentication  
+✅ Protected route decorators  
+✅ Secure file upload handling  
+✅ Environment variable support  
+✅ SQL injection prevention  
+
+**⚠️ Production Recommendations:**
+1. Change default admin credentials
+2. Set secure `SECRET_KEY` environment variable
+3. Use HTTPS with SSL certificates
+4. Restrict database file permissions (644)
+5. Keep dependencies updated
+
+## Monitoring
+
+### Check Application
+```bash
+sudo systemctl status twiliosms
 ```
 
-## API Endpoints
+### View Logs
+```bash
+# Application logs
+tail -f twilio_sms.log
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Home page (redirects to login/dashboard) |
-| `/login` | GET/POST | User login |
-| `/logout` | GET | User logout |
-| `/dashboard` | GET | Main dashboard |
-| `/settings` | GET/POST | Twilio configuration |
-| `/send_sms` | GET/POST | Send SMS campaign |
-| `/campaign/<id>` | GET | Campaign status page |
-| `/api/campaign/<id>/status` | GET | Campaign status API |
-
-## Updates and Maintenance
-
-### Simple Updates
-
-1. **Update from GitHub**:
-   ```bash
-   sudo /opt/twilio-sms/update.sh
-   ```
-
-2. **Fresh Deployment**:
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/hmali/TiwlioSMS/main/deploy.sh | sudo bash
-   ```
-
-3. **Auto-Updates** (Optional):
-   ```bash
-   sudo /opt/twilio-sms/setup-auto-update.sh
-   ```
+# System logs
+sudo journalctl -u twiliosms -f
+```
 
 ## Troubleshooting
 
-### Common Issues
+**Auto-reply not working?**
+```bash
+cd scripts/diagnostics
+./fix_auto_reply_update.sh
+```
 
-1. **Application won't start**
-   ```bash
-   sudo journalctl -u twilio-sms-app -n 50
-   ```
+**Service won't start?**
+```bash
+sudo systemctl restart twiliosms
+sudo journalctl -u twiliosms -n 50
+```
 
-2. **Nginx errors**
-   ```bash
-   sudo nginx -t
-   sudo systemctl status nginx
-   ```
+**Database permission errors?**
+```bash
+chmod 644 twilio_sms.db
+sudo systemctl restart twiliosms
+```
 
-3. **Permission issues**
-   ```bash
-   sudo chown -R www-data:www-data /opt/twilio-sms-app
-   ```
+## Updates
 
-### Log Files
-- Application: `journalctl -u twilio-sms-app`
-- Nginx: `/var/log/nginx/error.log`
-- System: `/var/log/syslog`
-
-## Support
-
-For issues and feature requests, please:
-1. Check the troubleshooting section
-2. Review application logs
-3. Create an issue with detailed information
+```bash
+cd ~/TiwlioSMS
+git pull origin main
+source venv/bin/activate
+pip install -r requirements.txt
+sudo systemctl restart twiliosms
+```
 
 ## License
 
-This project is licensed under the MIT License. See LICENSE file for details.
+MIT License
 
-## Contributing
+## Author
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
----
-
-**Note**: This application is designed for legitimate bulk SMS use cases. Please ensure compliance with local regulations and obtain proper consent before sending messages.
+GMADP Team  
+For support, check logs or open a GitHub issue.

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-GMADP - Global Messaging and Distribution Platform
+Twilio Bulk SMS Web Application
 Production-ready Flask application for sending bulk SMS via Twilio
+Includes auto-reply functionality for inbound SMS
 """
 
 import os
@@ -16,9 +17,10 @@ import sqlite3
 from threading import Thread
 import time
 
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, Response
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioException
+from twilio.twiml.messaging_response import MessagingResponse
 
 # Configure logging
 logging.basicConfig(
@@ -39,6 +41,61 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+def get_auto_reply_message():
+    """Get auto-reply message from database"""
+    try:
+        conn = sqlite3.connect('twilio_sms.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT setting_value FROM settings WHERE setting_key = 'auto_reply_message'")
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            return result[0]
+        else:
+            # Fallback to environment variable or default
+            return os.getenv(
+                "AUTO_REPLY_MESSAGE",
+                "Jai Gajanan, Thank you for your message. Incoming messages on this number are not monitored. "
+                "Please contact us if you need additional information."
+            )
+    except Exception as e:
+        logger.error(f"Error getting auto-reply message: {str(e)}")
+        # Fallback to default
+        return "Thank you for your message. Incoming messages on this number are not monitored."
+
+def set_auto_reply_message(message):
+    """Set auto-reply message in database"""
+    try:
+        conn = sqlite3.connect('twilio_sms.db')
+        cursor = conn.cursor()
+        
+        # Check if setting exists
+        cursor.execute("SELECT id FROM settings WHERE setting_key = 'auto_reply_message'")
+        exists = cursor.fetchone()
+        
+        if exists:
+            # Update existing record
+            cursor.execute('''
+                UPDATE settings 
+                SET setting_value = ?, updated_at = CURRENT_TIMESTAMP 
+                WHERE setting_key = 'auto_reply_message'
+            ''', (message,))
+        else:
+            # Insert new record
+            cursor.execute('''
+                INSERT INTO settings (setting_key, setting_value, updated_at)
+                VALUES ('auto_reply_message', ?, CURRENT_TIMESTAMP)
+            ''', (message,))
+        
+        conn.commit()
+        conn.close()
+        logger.info(f"Auto-reply message updated successfully: {len(message)} characters")
+        return True
+    except Exception as e:
+        logger.error(f"Error setting auto-reply message: {str(e)}")
+        return False
+
 # Database initialization
 def init_db():
     """Initialize SQLite database"""
@@ -53,6 +110,7 @@ def init_db():
             password_hash TEXT NOT NULL,
             twilio_sid TEXT,
             twilio_token TEXT,
+            is_default_password BOOLEAN DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -88,13 +146,61 @@ def init_db():
         )
     ''')
     
+    # Inbound messages table (for auto-reply tracking)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS inbound_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            from_number TEXT NOT NULL,
+            to_number TEXT,
+            message_body TEXT,
+            message_sid TEXT,
+            reply_sent BOOLEAN DEFAULT 0,
+            received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Settings table for application configuration
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            setting_key TEXT UNIQUE NOT NULL,
+            setting_value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Initialize default auto-reply message if not exists
+    cursor.execute("SELECT COUNT(*) FROM settings WHERE setting_key = 'auto_reply_message'")
+    if cursor.fetchone()[0] == 0:
+        default_auto_reply = os.getenv(
+            "AUTO_REPLY_MESSAGE",
+            "Jai Gajanan, Thank you for your message. Incoming messages on this number are not monitored. "
+            "Please contact us if you need additional information."
+        )
+        cursor.execute('''
+            INSERT INTO settings (setting_key, setting_value)
+            VALUES ('auto_reply_message', ?)
+        ''', (default_auto_reply,))
+        logger.info("Default auto-reply message initialized in database")
+    
     # Create default admin user if not exists
     cursor.execute('SELECT COUNT(*) FROM users WHERE username = ?', ('admin',))
     if cursor.fetchone()[0] == 0:
         admin_hash = generate_password_hash('admin123')
-        cursor.execute('INSERT INTO users (username, password_hash) VALUES (?, ?)', 
-                      ('admin', admin_hash))
+        cursor.execute('INSERT INTO users (username, password_hash, is_default_password) VALUES (?, ?, ?)', 
+                      ('admin', admin_hash, 1))
         logger.info("Default admin user created (username: admin, password: admin123)")
+    
+    # Migrate existing users to add is_default_password column if needed
+    try:
+        cursor.execute("SELECT is_default_password FROM users LIMIT 1")
+    except sqlite3.OperationalError:
+        logger.info("Migrating database: Adding is_default_password column")
+        cursor.execute("ALTER TABLE users ADD COLUMN is_default_password BOOLEAN DEFAULT 0")
+        # Mark admin user as using default password if they haven't changed it
+        cursor.execute("UPDATE users SET is_default_password = 1 WHERE username = 'admin'")
+        conn.commit()
+        logger.info("Database migration completed successfully")
     
     conn.commit()
     conn.close()
@@ -242,13 +348,14 @@ def login():
         
         conn = sqlite3.connect('twilio_sms.db')
         cursor = conn.cursor()
-        cursor.execute('SELECT id, password_hash FROM users WHERE username = ?', (username,))
+        cursor.execute('SELECT id, password_hash, is_default_password FROM users WHERE username = ?', (username,))
         user = cursor.fetchone()
         conn.close()
         
         if user and check_password_hash(user[1], password):
             session['user_id'] = user[0]
             session['username'] = username
+            session['is_default_password'] = bool(user[2]) if len(user) > 2 else False
             flash('Login successful!', 'success')
             return redirect(url_for('dashboard'))
         else:
@@ -368,7 +475,7 @@ def change_credentials():
         # Update username and password
         new_password_hash = generate_password_hash(new_password)
         cursor.execute('''
-            UPDATE users SET username = ?, password_hash = ? WHERE id = ?
+            UPDATE users SET username = ?, password_hash = ?, is_default_password = 0 WHERE id = ?
         ''', (new_username, new_password_hash, session['user_id']))
         
         conn.commit()
@@ -376,6 +483,7 @@ def change_credentials():
         
         # Update session
         session['username'] = new_username
+        session['is_default_password'] = False
         
         flash('Credentials updated successfully! Please log in again for security.', 'success')
         return redirect(url_for('logout'))
@@ -516,6 +624,98 @@ def api_campaign_status(campaign_id):
         })
     else:
         return jsonify({'error': 'Campaign not found'}), 404
+
+# ============================================================================
+# AUTO-REPLY WEBHOOK ROUTES (for inbound SMS)
+# ============================================================================
+
+@app.route('/health')
+def health():
+    """Health check endpoint for monitoring"""
+    return jsonify({"status": "ok", "service": "TwilioSMS"}), 200
+
+@app.route('/sms/inbound', methods=['POST'])
+def sms_inbound():
+    """
+    Twilio webhook for inbound SMS messages
+    Automatically replies with configured message
+    
+    Twilio POST fields:
+    - From: sender's phone number
+    - To: recipient's phone number (your Twilio number)
+    - Body: message text
+    - MessageSid: unique message ID
+    """
+    # Get message details from Twilio POST
+    from_number = request.form.get("From", "")
+    to_number = request.form.get("To", "")
+    body = request.form.get("Body", "")
+    msg_sid = request.form.get("MessageSid", "")
+    
+    # Log inbound message
+    logger.info(f"Inbound SMS: From={from_number} To={to_number} SID={msg_sid} Body={body}")
+    
+    # Store in database
+    try:
+        conn = sqlite3.connect('twilio_sms.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO inbound_messages (from_number, to_number, message_body, message_sid, reply_sent)
+            VALUES (?, ?, ?, ?, 1)
+        ''', (from_number, to_number, body, msg_sid))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"Error storing inbound message: {str(e)}")
+    
+    # Create TwiML response with auto-reply
+    resp = MessagingResponse()
+    resp.message(get_auto_reply_message())
+    
+    logger.info(f"Auto-reply sent to {from_number}")
+    
+    return Response(str(resp), mimetype="text/xml")
+
+@app.route('/inbound-messages')
+@login_required
+def inbound_messages():
+    """View inbound messages (admin only)"""
+    conn = sqlite3.connect('twilio_sms.db')
+    cursor = conn.cursor()
+    
+    # Get recent inbound messages
+    cursor.execute('''
+        SELECT id, from_number, to_number, message_body, message_sid, reply_sent, received_at
+        FROM inbound_messages 
+        ORDER BY received_at DESC
+        LIMIT 100
+    ''')
+    
+    messages = cursor.fetchall()
+    conn.close()
+    
+    return render_template('inbound_messages.html', messages=messages)
+
+@app.route('/settings/auto-reply', methods=['GET', 'POST'])
+@login_required
+def settings_auto_reply():
+    """Configure auto-reply message (stored in database)"""
+    if request.method == 'POST':
+        new_message = request.form.get('auto_reply_message', '').strip()
+        
+        if new_message:
+            if set_auto_reply_message(new_message):
+                flash('Auto-reply message updated successfully!', 'success')
+                logger.info(f"Auto-reply message updated by user {session['username']}")
+            else:
+                flash('Error updating auto-reply message. Please try again.', 'error')
+        else:
+            flash('Auto-reply message cannot be empty', 'error')
+        
+        return redirect(url_for('settings_auto_reply'))
+    
+    current_message = get_auto_reply_message()
+    return render_template('settings_auto_reply.html', current_message=current_message)
 
 if __name__ == '__main__':
     init_db()
