@@ -209,6 +209,77 @@ def store_inbound_message(from_number, to_number, body, msg_sid, intent=None):
         logger.error(f"Error storing inbound message: {str(e)}")
         return False
 
+def ensure_database_schema():
+    """Ensure database has all required columns and tables (migration helper)"""
+    conn = sqlite3.connect('twilio_sms.db')
+    cursor = conn.cursor()
+    
+    try:
+        # Check if intent column exists in inbound_messages table
+        cursor.execute("PRAGMA table_info(inbound_messages)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'intent' not in columns:
+            logger.info("Adding 'intent' column to inbound_messages table...")
+            cursor.execute("ALTER TABLE inbound_messages ADD COLUMN intent TEXT")
+            conn.commit()
+            logger.info("Migration completed: intent column added")
+        
+        # Check if subscribers table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='subscribers'")
+        if not cursor.fetchone():
+            logger.info("Creating subscribers table...")
+            cursor.execute('''
+                CREATE TABLE subscribers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    phone_number TEXT UNIQUE NOT NULL,
+                    status TEXT DEFAULT 'subscribed',
+                    opted_in_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    opted_out_at TIMESTAMP,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            conn.commit()
+            logger.info("Subscribers table created")
+        
+        # Check if auto_reply_intents table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='auto_reply_intents'")
+        if not cursor.fetchone():
+            logger.info("Creating auto_reply_intents table...")
+            cursor.execute('''
+                CREATE TABLE auto_reply_intents (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    intent_name TEXT UNIQUE NOT NULL,
+                    keywords TEXT NOT NULL,
+                    reply_message TEXT NOT NULL,
+                    priority INTEGER DEFAULT 0,
+                    is_active BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Insert default intents
+            cursor.execute('''
+                INSERT OR IGNORE INTO auto_reply_intents (intent_name, keywords, reply_message, priority)
+                VALUES 
+                    ('RSVP', 'RSVP,YES,CONFIRM,ATTENDING', 'Thank you for your RSVP! We look forward to seeing you at the event.', 1),
+                    ('TIME', 'TIME,WHEN,SCHEDULE', 'Event timing: Please check your invitation for complete schedule details.', 2),
+                    ('ADDRESS', 'ADDRESS,WHERE,LOCATION', 'Location: Please refer to your invitation for the complete address and directions.', 3),
+                    ('SEVA', 'SEVA,VOLUNTEER,HELP', 'Thank you for offering seva! A coordinator will contact you with details.', 4)
+            ''')
+            conn.commit()
+            logger.info("Auto-reply intents table created with default intents")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Database migration error: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
 # Database initialization
 def init_db():
     """Initialize SQLite database"""
@@ -872,21 +943,45 @@ def sms_inbound():
 @login_required
 def inbound_messages():
     """View inbound messages (admin only)"""
+    # Ensure database schema is up to date
+    ensure_database_schema()
+    
     conn = sqlite3.connect('twilio_sms.db')
     cursor = conn.cursor()
     
-    # Get recent inbound messages with intent
-    cursor.execute('''
-        SELECT id, from_number, to_number, message_body, message_sid, reply_sent, intent, received_at
-        FROM inbound_messages 
-        ORDER BY received_at DESC
-        LIMIT 100
-    ''')
-    
-    messages = cursor.fetchall()
-    conn.close()
-    
-    return render_template('inbound_messages.html', messages=messages)
+    try:
+        # Check if intent column exists
+        cursor.execute("PRAGMA table_info(inbound_messages)")
+        columns = [column[1] for column in cursor.fetchall()]
+        has_intent_column = 'intent' in columns
+        
+        # Query with or without intent column based on schema
+        if has_intent_column:
+            cursor.execute('''
+                SELECT id, from_number, to_number, message_body, message_sid, reply_sent, intent, received_at
+                FROM inbound_messages 
+                ORDER BY received_at DESC
+                LIMIT 100
+            ''')
+        else:
+            # Fallback for old schema - add NULL as intent placeholder
+            cursor.execute('''
+                SELECT id, from_number, to_number, message_body, message_sid, reply_sent, NULL as intent, received_at
+                FROM inbound_messages 
+                ORDER BY received_at DESC
+                LIMIT 100
+            ''')
+        
+        messages = cursor.fetchall()
+        conn.close()
+        
+        return render_template('inbound_messages.html', messages=messages)
+        
+    except Exception as e:
+        logger.error(f"Error fetching inbound messages: {e}")
+        conn.close()
+        flash('Error loading inbound messages. Please check logs.', 'error')
+        return render_template('inbound_messages.html', messages=[])
 
 @app.route('/settings/auto-reply', methods=['GET', 'POST'])
 @login_required
@@ -913,31 +1008,44 @@ def settings_auto_reply():
 @login_required
 def subscribers():
     """View all subscribers and their opt-in/opt-out status"""
+    # Ensure database schema is up to date
+    ensure_database_schema()
+    
     conn = sqlite3.connect('twilio_sms.db')
     cursor = conn.cursor()
     
-    # Get all subscribers
-    cursor.execute('''
-        SELECT phone_number, status, opted_in_at, opted_out_at, last_updated
-        FROM subscribers 
-        ORDER BY last_updated DESC
-    ''')
+    try:
+        # Get all subscribers
+        cursor.execute('''
+            SELECT phone_number, status, opted_in_at, opted_out_at, last_updated
+            FROM subscribers 
+            ORDER BY last_updated DESC
+        ''')
+        
+        subscribers_list = cursor.fetchall()
+        
+        # Get counts for summary
+        cursor.execute("SELECT COUNT(*) FROM subscribers WHERE status = 'subscribed'")
+        subscribed_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM subscribers WHERE status = 'unsubscribed'")
+        unsubscribed_count = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        return render_template('subscribers.html', 
+                             subscribers=subscribers_list,
+                             subscribed_count=subscribed_count,
+                             unsubscribed_count=unsubscribed_count)
     
-    subscribers_list = cursor.fetchall()
-    
-    # Get counts for summary
-    cursor.execute("SELECT COUNT(*) FROM subscribers WHERE status = 'subscribed'")
-    subscribed_count = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT COUNT(*) FROM subscribers WHERE status = 'unsubscribed'")
-    unsubscribed_count = cursor.fetchone()[0]
-    
-    conn.close()
-    
-    return render_template('subscribers.html', 
-                         subscribers=subscribers_list,
-                         subscribed_count=subscribed_count,
-                         unsubscribed_count=unsubscribed_count)
+    except Exception as e:
+        logger.error(f"Error fetching subscribers: {e}")
+        conn.close()
+        flash('Error loading subscribers. Please check logs.', 'error')
+        return render_template('subscribers.html', 
+                             subscribers=[],
+                             subscribed_count=0,
+                             unsubscribed_count=0)
 
 if __name__ == '__main__':
     init_db()
