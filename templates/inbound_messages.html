@@ -26,6 +26,7 @@
                         <th>From Number</th>
                         <th>To Number</th>
                         <th>Message</th>
+                        <th>Intent</th>
                         <th>Message SID</th>
                         <th>Reply Sent</th>
                     </tr>
@@ -33,13 +34,30 @@
                 <tbody>
                     {% for msg in messages %}
                     <tr>
-                        <td>{{ msg[6] }}</td>
+                        <td>{{ msg[7] if msg|length > 7 else msg[6] }}</td>
                         <td><span class="badge bg-info">{{ msg[1] }}</span></td>
                         <td>{{ msg[2] }}</td>
                         <td>
                             <div style="max-width: 300px; white-space: normal;">
                                 {{ msg[3] }}
                             </div>
+                        </td>
+                        <td>
+                            {% if msg|length > 6 and msg[6] %}
+                                {% if msg[6] == 'STOP' %}
+                                    <span class="badge bg-danger"><i class="fas fa-ban"></i> STOP</span>
+                                {% elif msg[6] == 'START' %}
+                                    <span class="badge bg-success"><i class="fas fa-check-circle"></i> START</span>
+                                {% elif msg[6] == 'UNSUBSCRIBED' %}
+                                    <span class="badge bg-secondary"><i class="fas fa-user-slash"></i> Unsubscribed</span>
+                                {% elif msg[6] == 'DEFAULT' %}
+                                    <span class="badge bg-light text-dark"><i class="fas fa-comment"></i> Default</span>
+                                {% else %}
+                                    <span class="badge bg-primary"><i class="fas fa-brain"></i> {{ msg[6] }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-light text-muted">-</span>
+                            {% endif %}
                         </td>
                         <td><small class="text-muted">{{ msg[4] }}</small></td>
                         <td>

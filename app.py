@@ -96,6 +96,119 @@ def set_auto_reply_message(message):
         logger.error(f"Error setting auto-reply message: {str(e)}")
         return False
 
+def get_subscriber_status(phone_number):
+    """Get subscriber opt-in/opt-out status"""
+    try:
+        conn = sqlite3.connect('twilio_sms.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT status FROM subscribers WHERE phone_number = ?", (phone_number,))
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            return result[0]  # 'subscribed' or 'unsubscribed'
+        else:
+            return 'subscribed'  # Default: assume subscribed if not in database
+    except Exception as e:
+        logger.error(f"Error getting subscriber status: {str(e)}")
+        return 'subscribed'  # Safe default
+
+def update_subscriber_status(phone_number, status):
+    """Update subscriber opt-in/opt-out status"""
+    try:
+        conn = sqlite3.connect('twilio_sms.db')
+        cursor = conn.cursor()
+        
+        # Check if subscriber exists
+        cursor.execute("SELECT id FROM subscribers WHERE phone_number = ?", (phone_number,))
+        exists = cursor.fetchone()
+        
+        if exists:
+            # Update existing subscriber
+            if status == 'unsubscribed':
+                cursor.execute('''
+                    UPDATE subscribers 
+                    SET status = ?, opted_out_at = CURRENT_TIMESTAMP, last_updated = CURRENT_TIMESTAMP
+                    WHERE phone_number = ?
+                ''', (status, phone_number))
+            else:
+                cursor.execute('''
+                    UPDATE subscribers 
+                    SET status = ?, opted_in_at = CURRENT_TIMESTAMP, last_updated = CURRENT_TIMESTAMP
+                    WHERE phone_number = ?
+                ''', (status, phone_number))
+        else:
+            # Insert new subscriber
+            if status == 'unsubscribed':
+                cursor.execute('''
+                    INSERT INTO subscribers (phone_number, status, opted_out_at)
+                    VALUES (?, ?, CURRENT_TIMESTAMP)
+                ''', (phone_number, status))
+            else:
+                cursor.execute('''
+                    INSERT INTO subscribers (phone_number, status)
+                    VALUES (?, ?)
+                ''', (phone_number, status))
+        
+        conn.commit()
+        conn.close()
+        logger.info(f"Subscriber {phone_number} status updated to: {status}")
+        return True
+    except Exception as e:
+        logger.error(f"Error updating subscriber status: {str(e)}")
+        return False
+
+def detect_intent(message_body):
+    """Detect intent from message body using keyword matching"""
+    try:
+        conn = sqlite3.connect('twilio_sms.db')
+        cursor = conn.cursor()
+        
+        # Get all active intents ordered by priority
+        cursor.execute('''
+            SELECT intent_name, keywords, reply_message 
+            FROM auto_reply_intents 
+            WHERE is_active = 1 
+            ORDER BY priority ASC
+        ''')
+        intents = cursor.fetchall()
+        conn.close()
+        
+        # Normalize message body
+        body_upper = message_body.upper().strip()
+        
+        # Check each intent's keywords
+        for intent_name, keywords, reply_message in intents:
+            keyword_list = [k.strip().upper() for k in keywords.split(',')]
+            
+            # Check if any keyword matches
+            for keyword in keyword_list:
+                if keyword in body_upper:
+                    logger.info(f"Intent detected: {intent_name} (keyword: {keyword})")
+                    return intent_name, reply_message
+        
+        # No intent matched
+        return None, None
+    except Exception as e:
+        logger.error(f"Error detecting intent: {str(e)}")
+        return None, None
+
+def store_inbound_message(from_number, to_number, body, msg_sid, intent=None):
+    """Store inbound message in database with intent"""
+    try:
+        conn = sqlite3.connect('twilio_sms.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO inbound_messages (from_number, to_number, message_body, message_sid, reply_sent, intent)
+            VALUES (?, ?, ?, ?, 1, ?)
+        ''', (from_number, to_number, body, msg_sid, intent))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"Error storing inbound message: {str(e)}")
+        return False
+
 # Database initialization
 def init_db():
     """Initialize SQLite database"""
@@ -155,6 +268,7 @@ def init_db():
             message_body TEXT,
             message_sid TEXT,
             reply_sent BOOLEAN DEFAULT 0,
+            intent TEXT,
             received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -165,6 +279,32 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             setting_key TEXT UNIQUE NOT NULL,
             setting_value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Subscribers table for opt-in/opt-out management (v2.1.0)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS subscribers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            phone_number TEXT UNIQUE NOT NULL,
+            status TEXT DEFAULT 'subscribed',
+            opted_in_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            opted_out_at TIMESTAMP,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Auto-reply intents table for custom responses (v2.1.0)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS auto_reply_intents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            intent_name TEXT UNIQUE NOT NULL,
+            keywords TEXT NOT NULL,
+            reply_message TEXT NOT NULL,
+            priority INTEGER DEFAULT 0,
+            is_active BOOLEAN DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -190,6 +330,25 @@ def init_db():
         cursor.execute('INSERT INTO users (username, password_hash, is_default_password) VALUES (?, ?, ?)', 
                       ('admin', admin_hash, 1))
         logger.info("Default admin user created (username: admin, password: admin123)")
+    
+    # Initialize default auto-reply intents if not exists (v2.1.0)
+    cursor.execute("SELECT COUNT(*) FROM auto_reply_intents")
+    if cursor.fetchone()[0] == 0:
+        default_intents = [
+            ('RSVP', 'RSVP,YES,CONFIRM,ATTENDING,COUNT ME IN', 
+             'Thank you for your RSVP! We have confirmed your attendance. Jai Gajanan 🙏', 1),
+            ('TIME', 'TIME,WHEN,SCHEDULE,TIMING,WHAT TIME', 
+             'Event timing: Please check the original invitation for schedule details.', 2),
+            ('ADDRESS', 'ADDRESS,WHERE,LOCATION,DIRECTIONS,HOW TO REACH', 
+             'Location details: Please refer to the original invitation for address and directions.', 3),
+            ('SEVA', 'SEVA,VOLUNTEER,HELP,PARTICIPATE,SERVE', 
+             'Thank you for offering seva! We will contact you with volunteer opportunities. Jai Gajanan 🙏', 4),
+        ]
+        cursor.executemany('''
+            INSERT INTO auto_reply_intents (intent_name, keywords, reply_message, priority)
+            VALUES (?, ?, ?, ?)
+        ''', default_intents)
+        logger.info("Default auto-reply intents initialized (RSVP, TIME, ADDRESS, SEVA)")
     
     # Migrate existing users to add is_default_password column if needed
     try:
@@ -638,7 +797,7 @@ def health():
 def sms_inbound():
     """
     Twilio webhook for inbound SMS messages
-    Automatically replies with configured message
+    Implements STOP/START compliance and intent-based auto-replies
     
     Twilio POST fields:
     - From: sender's phone number
@@ -649,30 +808,63 @@ def sms_inbound():
     # Get message details from Twilio POST
     from_number = request.form.get("From", "")
     to_number = request.form.get("To", "")
-    body = request.form.get("Body", "")
+    body = request.form.get("Body", "").strip()
     msg_sid = request.form.get("MessageSid", "")
     
     # Log inbound message
-    logger.info(f"Inbound SMS: From={from_number} To={to_number} SID={msg_sid} Body={body}")
+    logger.info(f"📩 Inbound SMS: From={from_number} Body='{body}' SID={msg_sid}")
     
-    # Store in database
-    try:
-        conn = sqlite3.connect('twilio_sms.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO inbound_messages (from_number, to_number, message_body, message_sid, reply_sent)
-            VALUES (?, ?, ?, ?, 1)
-        ''', (from_number, to_number, body, msg_sid))
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        logger.error(f"Error storing inbound message: {str(e)}")
+    # Normalize message body for keyword detection
+    body_upper = body.upper().strip()
     
-    # Create TwiML response with auto-reply
+    # Create TwiML response
     resp = MessagingResponse()
-    resp.message(get_auto_reply_message())
+    intent_detected = None
+    reply_message = None
     
-    logger.info(f"Auto-reply sent to {from_number}")
+    # STEP 1: Check for STOP keywords (highest priority)
+    STOP_KEYWORDS = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']
+    if body_upper in STOP_KEYWORDS:
+        # Update subscriber status to unsubscribed
+        update_subscriber_status(from_number, 'unsubscribed')
+        intent_detected = 'STOP'
+        reply_message = "You have been unsubscribed and will not receive further messages. Reply START to resubscribe."
+        resp.message(reply_message)
+        logger.info(f"🛑 STOP request from {from_number} - Unsubscribed")
+    
+    # STEP 2: Check for START keywords
+    elif body_upper in ['START', 'YES', 'UNSTOP']:
+        # Update subscriber status to subscribed
+        update_subscriber_status(from_number, 'subscribed')
+        intent_detected = 'START'
+        reply_message = "You have been resubscribed and will receive messages again. Reply STOP to unsubscribe."
+        resp.message(reply_message)
+        logger.info(f"✅ START request from {from_number} - Resubscribed")
+    
+    # STEP 3: Check if user is currently unsubscribed
+    elif get_subscriber_status(from_number) == 'unsubscribed':
+        intent_detected = 'UNSUBSCRIBED'
+        reply_message = "You are currently unsubscribed. Reply START to receive messages again."
+        resp.message(reply_message)
+        logger.info(f"⚠️ Message from unsubscribed user {from_number}")
+    
+    # STEP 4: Check for intent-based auto-replies
+    else:
+        detected_intent, intent_reply = detect_intent(body)
+        if detected_intent and intent_reply:
+            intent_detected = detected_intent
+            reply_message = intent_reply
+            resp.message(intent_reply)
+            logger.info(f"🎯 Intent '{detected_intent}' detected for {from_number}")
+        else:
+            # STEP 5: Send default auto-reply message
+            intent_detected = 'DEFAULT'
+            reply_message = get_auto_reply_message()
+            resp.message(reply_message)
+            logger.info(f"💬 Default auto-reply sent to {from_number}")
+    
+    # Store inbound message in database with detected intent
+    store_inbound_message(from_number, to_number, body, msg_sid, intent_detected)
     
     return Response(str(resp), mimetype="text/xml")
 
@@ -683,9 +875,9 @@ def inbound_messages():
     conn = sqlite3.connect('twilio_sms.db')
     cursor = conn.cursor()
     
-    # Get recent inbound messages
+    # Get recent inbound messages with intent
     cursor.execute('''
-        SELECT id, from_number, to_number, message_body, message_sid, reply_sent, received_at
+        SELECT id, from_number, to_number, message_body, message_sid, reply_sent, intent, received_at
         FROM inbound_messages 
         ORDER BY received_at DESC
         LIMIT 100
@@ -716,6 +908,36 @@ def settings_auto_reply():
     
     current_message = get_auto_reply_message()
     return render_template('settings_auto_reply.html', current_message=current_message)
+
+@app.route('/subscribers')
+@login_required
+def subscribers():
+    """View all subscribers and their opt-in/opt-out status"""
+    conn = sqlite3.connect('twilio_sms.db')
+    cursor = conn.cursor()
+    
+    # Get all subscribers
+    cursor.execute('''
+        SELECT phone_number, status, opted_in_at, opted_out_at, last_updated
+        FROM subscribers 
+        ORDER BY last_updated DESC
+    ''')
+    
+    subscribers_list = cursor.fetchall()
+    
+    # Get counts for summary
+    cursor.execute("SELECT COUNT(*) FROM subscribers WHERE status = 'subscribed'")
+    subscribed_count = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM subscribers WHERE status = 'unsubscribed'")
+    unsubscribed_count = cursor.fetchone()[0]
+    
+    conn.close()
+    
+    return render_template('subscribers.html', 
+                         subscribers=subscribers_list,
+                         subscribed_count=subscribed_count,
+                         unsubscribed_count=unsubscribed_count)
 
 if __name__ == '__main__':
     init_db()

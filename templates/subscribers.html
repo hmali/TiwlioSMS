@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Subscriber Management - GMADP Communication Platform{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <h2><i class="fas fa-users"></i> Subscriber Management</h2>
+        <p class="text-muted">STOP/START compliance dashboard</p>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card border-success">
+            <div class="card-body">
+                <h5 class="card-title text-success">
+                    <i class="fas fa-check-circle"></i> Subscribed
+                </h5>
+                <h2 class="display-4">{{ subscribed_count }}</h2>
+                <p class="text-muted mb-0">Active subscribers receiving messages</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-body">
+                <h5 class="card-title text-danger">
+                    <i class="fas fa-ban"></i> Unsubscribed
+                </h5>
+                <h2 class="display-4">{{ unsubscribed_count }}</h2>
+                <p class="text-muted mb-0">Users who sent STOP (will not receive messages)</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subscribers Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list"></i> All Subscribers</h5>
+    </div>
+    <div class="card-body">
+        {% if subscribers %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Phone Number</th>
+                        <th>Status</th>
+                        <th>Subscribed At</th>
+                        <th>Unsubscribed At</th>
+                        <th>Last Updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in subscribers %}
+                    <tr class="{% if sub[1] == 'unsubscribed' %}table-danger{% endif %}">
+                        <td>
+                            <strong>{{ sub[0] }}</strong>
+                        </td>
+                        <td>
+                            {% if sub[1] == 'subscribed' %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle"></i> Subscribed
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-ban"></i> Unsubscribed
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if sub[2] %}
+                                <small>{{ sub[2] }}</small>
+                            {% else %}
+                                <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if sub[3] %}
+                                <small class="text-danger">{{ sub[3] }}</small>
+                            {% else %}
+                                <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ sub[4] }}</small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-users fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">No subscriber data yet</h5>
+            <p class="text-muted">When users send STOP or START, they will appear here.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Information Panel -->
+<div class="alert alert-info mt-4">
+    <h6><i class="fas fa-info-circle"></i> TCPA/CTIA Compliance</h6>
+    <div class="row">
+        <div class="col-md-6">
+            <strong>STOP Keywords (Unsubscribe):</strong>
+            <ul class="mb-0">
+                <li>STOP</li>
+                <li>STOPALL</li>
+                <li>UNSUBSCRIBE</li>
+                <li>CANCEL</li>
+                <li>END</li>
+                <li>QUIT</li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <strong>START Keywords (Resubscribe):</strong>
+            <ul class="mb-0">
+                <li>START</li>
+                <li>YES</li>
+                <li>UNSTOP</li>
+            </ul>
+        </div>
+    </div>
+    <hr>
+    <p class="mb-0">
+        <strong>⚠️ Important:</strong> Users who have sent STOP will NOT receive any campaign messages. 
+        The system automatically prevents sending to unsubscribed numbers. This ensures full compliance 
+        with TCPA regulations and Twilio's messaging policies.
+    </p>
+</div>
+
+<!-- Export Options (Future Enhancement) -->
+<div class="card mt-3">
+    <div class="card-body">
+        <h6><i class="fas fa-download"></i> Export Options</h6>
+        <p class="text-muted">Download subscriber lists for compliance records</p>
+        <button class="btn btn-outline-primary" disabled>
+            <i class="fas fa-file-csv"></i> Export All Subscribers (Coming Soon)
+        </button>
+        <button class="btn btn-outline-danger" disabled>
+            <i class="fas fa-file-csv"></i> Export Unsubscribed Only (Coming Soon)
+        </button>
+    </div>
+</div>
+
+{% endblock %}
