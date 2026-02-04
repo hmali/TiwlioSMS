@@ -8,12 +8,43 @@
 ## 🚀 Quick Installation (Production)
 
 ### Prerequisites
-- Ubuntu 20.04/22.04 LTS
-- Python 3.8+
-- Twilio Account with active phone number
-- Domain name (optional, for HTTPS)
+- Ubuntu 20.04/22.04 LTS  
+- Python 3.8+  
+- Twilio Account with active phone number  
+- Domain name or IP address  
 
-### Installation Steps
+---
+
+### ⚡ Option 1: One-Command Installation (Recommended)
+
+**Complete automated deployment in 5-10 minutes:**
+
+```bash
+wget https://raw.githubusercontent.com/hmali/TiwlioSMS/dev/twilioms-test/install_production.sh
+sudo bash install_production.sh
+```
+
+**What it does automatically:**
+- ✅ Installs all system dependencies  
+- ✅ Clones repository and sets up Python environment  
+- ✅ Initializes and migrates database  
+- ✅ Configures systemd service  
+- ✅ Sets up Nginx reverse proxy  
+- ✅ Optional: HTTPS with Let's Encrypt  
+- ✅ Optional: Firewall configuration  
+
+**Interactive prompts for:**
+- Domain name/IP address
+- Installation directory
+- HTTPS setup (y/n)
+- Firewall setup (y/n)
+
+---
+
+### 🔧 Option 2: Manual Installation
+
+<details>
+<summary>Click to expand manual installation steps</summary>
 
 ```bash
 # 1. System packages
@@ -24,6 +55,7 @@ sudo apt install -y python3 python3-pip python3-venv nginx git sqlite3
 cd ~
 git clone https://github.com/hmali/TiwlioSMS.git
 cd TiwlioSMS
+git checkout dev/twilioms-test
 
 # 3. Setup virtual environment
 python3 -m venv venv
@@ -66,13 +98,12 @@ WantedBy=multi-user.target
 sudo systemctl daemon-reload
 sudo systemctl start twiliosms
 sudo systemctl enable twiliosms
-sudo systemctl status twiliosms
 
 # 8. Configure Nginx
 sudo nano /etc/nginx/sites-available/twiliosms
 ```
 
-**Nginx config** (replace YOUR_USERNAME and your-domain.com):
+**Nginx config:**
 ```nginx
 server {
     listen 80;
@@ -82,7 +113,6 @@ server {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
     location /static {
@@ -100,10 +130,12 @@ sudo ln -s /etc/nginx/sites-available/twiliosms /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 
-# 10. Setup HTTPS (optional but recommended)
+# 10. Setup HTTPS (optional)
 sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d your-domain.com
 ```
+
+</details>
 
 ---
 
@@ -167,7 +199,7 @@ sudo systemctl start twiliosms
 
 ---
 
-## 🔄 Updates
+## �� Updates
 
 ```bash
 cd ~/TiwlioSMS
@@ -191,4 +223,4 @@ sudo systemctl restart twiliosms
 
 ---
 
-**Developed by GMADP Team** | Version 2.1.1 Hotfix | February 3, 2026
+**Developed by GMADP Team** | Version 2.1.1 Hotfix | February 4, 2026
