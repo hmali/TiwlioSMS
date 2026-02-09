@@ -27,19 +27,19 @@
                         <th>To Number</th>
                         <th>Message</th>
                         <th>Intent</th>
-                        <th>Message SID</th>
-                        <th>Reply Sent</th>
+                        <th>Auto-Reply</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for msg in messages %}
-                    <tr>
+                    <tr id="msg-{{ msg[0] }}">
                         <td>{{ msg[7] if msg|length > 7 else msg[6] }}</td>
                         <td><span class="badge bg-info">{{ msg[1] }}</span></td>
                         <td>{{ msg[2] }}</td>
                         <td>
                             <div style="max-width: 300px; white-space: normal;">
-                                {{ msg[3] }}
+                                <strong>{{ msg[3] }}</strong>
                             </div>
                         </td>
                         <td>
@@ -59,13 +59,54 @@
                                 <span class="badge bg-light text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td><small class="text-muted">{{ msg[4] }}</small></td>
                         <td>
                             {% if msg[5] %}
-                                <span class="badge bg-success"><i class="fas fa-check"></i> Yes</span>
+                                <span class="badge bg-success"><i class="fas fa-check"></i> Sent</span>
                             {% else %}
-                                <span class="badge bg-warning"><i class="fas fa-times"></i> No</span>
+                                <span class="badge bg-warning"><i class="fas fa-times"></i> Not Sent</span>
                             {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#reply-{{ msg[0] }}" aria-expanded="false">
+                                <i class="fas fa-reply"></i> Reply
+                            </button>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="reply-{{ msg[0] }}">
+                        <td colspan="7" class="bg-light">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="fas fa-paper-plane"></i> Send Custom Reply to {{ msg[1] }}</h6>
+                                    <form method="POST" action="{{ url_for('send_custom_reply', message_id=msg[0]) }}" class="needs-validation" novalidate>
+                                        <div class="mb-3">
+                                            <label class="form-label">Original Message:</label>
+                                            <div class="alert alert-secondary mb-3">
+                                                <i class="fas fa-comment-dots"></i> "{{ msg[3] }}"
+                                            </div>
+                                            <label for="custom_message_{{ msg[0] }}" class="form-label">Your Custom Reply:</label>
+                                            <textarea 
+                                                class="form-control" 
+                                                id="custom_message_{{ msg[0] }}" 
+                                                name="custom_message" 
+                                                rows="3" 
+                                                placeholder="Type your personalized response here..."
+                                                required
+                                                maxlength="1600"></textarea>
+                                            <div class="form-text">
+                                                <i class="fas fa-info-circle"></i> This will send a 1:1 SMS reply to this person. Character count: <span id="char-count-{{ msg[0] }}">0</span>/1600
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <button type="submit" class="btn btn-success">
+                                                <i class="fas fa-paper-plane"></i> Send Custom Reply
+                                            </button>
+                                            <button type="button" class="btn btn-secondary" data-bs-toggle="collapse" data-bs-target="#reply-{{ msg[0] }}">
+                                                <i class="fas fa-times"></i> Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -93,4 +134,41 @@
         <li>Click "Save"</li>
     </ol>
 </div>
+
+<script>
+// Character counter for custom reply messages
+document.addEventListener('DOMContentLoaded', function() {
+    // Add character counting for all custom message textareas
+    document.querySelectorAll('textarea[name="custom_message"]').forEach(function(textarea) {
+        const messageId = textarea.id.split('_').pop();
+        const charCount = document.getElementById('char-count-' + messageId);
+        
+        textarea.addEventListener('input', function() {
+            charCount.textContent = this.value.length;
+            
+            // Change color based on length
+            if (this.value.length > 1500) {
+                charCount.classList.add('text-danger');
+                charCount.classList.remove('text-warning');
+            } else if (this.value.length > 1200) {
+                charCount.classList.add('text-warning');
+                charCount.classList.remove('text-danger');
+            } else {
+                charCount.classList.remove('text-danger', 'text-warning');
+            }
+        });
+    });
+    
+    // Form validation
+    document.querySelectorAll('.needs-validation').forEach(function(form) {
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+});
+</script>
 {% endblock %}

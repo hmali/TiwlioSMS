@@ -956,7 +956,7 @@ def inbound_messages():
         has_intent_column = 'intent' in columns
         
         # Query with or without intent column based on schema
-        if has_intent_column:
+        if (has_intent_column):
             cursor.execute('''
                 SELECT id, from_number, to_number, message_body, message_sid, reply_sent, intent, received_at
                 FROM inbound_messages 
@@ -982,6 +982,79 @@ def inbound_messages():
         conn.close()
         flash('Error loading inbound messages. Please check logs.', 'error')
         return render_template('inbound_messages.html', messages=[])
+
+@app.route('/send-custom-reply/<int:message_id>', methods=['POST'])
+@login_required
+def send_custom_reply(message_id):
+    """Send custom reply to an inbound message (1:1 conversation)"""
+    custom_message = request.form.get('custom_message', '').strip()
+    
+    if not custom_message:
+        flash('Please enter a message to send', 'error')
+        return redirect(url_for('inbound_messages'))
+    
+    try:
+        # Get the inbound message details
+        conn = sqlite3.connect('twilio_sms.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT from_number, to_number FROM inbound_messages WHERE id = ?
+        ''', (message_id,))
+        result = cursor.fetchone()
+        
+        if not result:
+            flash('Message not found', 'error')
+            conn.close()
+            return redirect(url_for('inbound_messages'))
+        
+        from_number, to_number = result
+        
+        # Get Twilio credentials
+        cursor.execute('''
+            SELECT twilio_sid, twilio_token FROM users WHERE id = ?
+        ''', (session['user_id'],))
+        creds = cursor.fetchone()
+        
+        if not creds or not creds[0] or not creds[1]:
+            flash('Twilio credentials not configured. Please add them in Settings.', 'error')
+            conn.close()
+            return redirect(url_for('inbound_messages'))
+        
+        account_sid, auth_token = creds
+        
+        # Send the custom reply via Twilio
+        client = Client(account_sid, auth_token)
+        message = client.messages.create(
+            body=custom_message,
+            from_=to_number,  # The original TO number becomes FROM
+            to=from_number    # The original FROM number becomes TO
+        )
+        
+        # Log the custom reply in message_status table for tracking
+        cursor.execute('''
+            INSERT INTO message_status (campaign_id, phone_number, message_sid, status, sent_at)
+            VALUES (NULL, ?, ?, 'sent', CURRENT_TIMESTAMP)
+        ''', (from_number, message.sid))
+        
+        # Update the inbound message to mark custom reply sent
+        cursor.execute('''
+            UPDATE inbound_messages SET reply_sent = 1 WHERE id = ?
+        ''', (message_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'✅ Custom reply sent successfully to {from_number}!', 'success')
+        logger.info(f"Custom reply sent to {from_number}: {custom_message[:50]}...")
+        
+    except TwilioException as e:
+        logger.error(f"Twilio error sending custom reply: {str(e)}")
+        flash(f'Error sending message: {str(e)}', 'error')
+    except Exception as e:
+        logger.error(f"Error sending custom reply: {str(e)}")
+        flash(f'Error sending custom reply: {str(e)}', 'error')
+    
+    return redirect(url_for('inbound_messages'))
 
 @app.route('/settings/auto-reply', methods=['GET', 'POST'])
 @login_required
