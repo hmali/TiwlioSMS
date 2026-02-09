@@ -1035,9 +1035,11 @@ def send_custom_reply(message_id):
             VALUES (NULL, ?, ?, 'sent', CURRENT_TIMESTAMP)
         ''', (from_number, message.sid))
         
-        # Update the inbound message to mark custom reply sent
+        # Update the inbound message to mark custom reply sent and change intent
         cursor.execute('''
-            UPDATE inbound_messages SET reply_sent = 1 WHERE id = ?
+            UPDATE inbound_messages 
+            SET reply_sent = 1, intent = 'CUSTOM_REPLY' 
+            WHERE id = ?
         ''', (message_id,))
         
         conn.commit()
