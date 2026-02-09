@@ -273,11 +273,20 @@ migrate_database() {
     
     # Check if migration script exists
     if [ -f "scripts/migrate_db_v2.1.1.py" ]; then
-        print_info "Executing migration script..."
+        print_info "Executing v2.1.1 migration script..."
         python3 scripts/migrate_db_v2.1.1.py
-        print_success "Database migration complete"
+        print_success "v2.1.1 migration complete"
     else
-        print_warning "Migration script not found (may not be needed)"
+        print_warning "v2.1.1 migration script not found (may not be needed)"
+    fi
+    
+    # Check if intent update script exists (v2.1.2)
+    if [ -f "scripts/update_intent_pending.py" ]; then
+        print_info "Executing v2.1.2 intent update..."
+        python3 scripts/update_intent_pending.py
+        print_success "Intent update complete"
+    else
+        print_warning "Intent update script not found (may not be needed)"
     fi
 }
 

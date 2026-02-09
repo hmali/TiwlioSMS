@@ -50,6 +50,8 @@
                                     <span class="badge bg-success"><i class="fas fa-check-circle"></i> START</span>
                                 {% elif msg[6] == 'UNSUBSCRIBED' %}
                                     <span class="badge bg-secondary"><i class="fas fa-user-slash"></i> Unsubscribed</span>
+                                {% elif msg[6] == 'PENDING_REPLY' %}
+                                    <span class="badge bg-warning"><i class="fas fa-clock"></i> Pending Reply</span>
                                 {% elif msg[6] == 'DEFAULT' %}
                                     <span class="badge bg-light text-dark"><i class="fas fa-comment"></i> Default</span>
                                 {% else %}

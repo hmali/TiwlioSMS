@@ -928,11 +928,10 @@ def sms_inbound():
             resp.message(intent_reply)
             logger.info(f"🎯 Intent '{detected_intent}' detected for {from_number}")
         else:
-            # STEP 5: Send default auto-reply message
-            intent_detected = 'DEFAULT'
-            reply_message = get_auto_reply_message()
-            resp.message(reply_message)
-            logger.info(f"💬 Default auto-reply sent to {from_number}")
+            # STEP 5: No automatic reply - wait for admin to send custom 1:1 reply
+            intent_detected = 'PENDING_REPLY'
+            reply_message = None  # No auto-reply sent
+            logger.info(f"📥 Message received from {from_number} - No auto-reply (waiting for custom reply)")
     
     # Store inbound message in database with detected intent
     store_inbound_message(from_number, to_number, body, msg_sid, intent_detected)
